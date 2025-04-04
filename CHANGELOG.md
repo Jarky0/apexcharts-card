@@ -1,3 +1,18 @@
+## 2.3.0 (2025-04-04)
+
+* feat(lint): Migrate ESLint to v9 flat config ([6e39ade](https://github.com/Jarky0/apexcharts-card/commit/6e39ade))
+* fix: Trigger patch release v2.2.1 ([c615bdf](https://github.com/Jarky0/apexcharts-card/commit/c615bdf))
+* fix: Trigger release cycle after dependency updates ([e2bba91](https://github.com/Jarky0/apexcharts-card/commit/e2bba91))
+* fix(ci): Use actions/cache@v4 instead of specific patch version ([f188dfa](https://github.com/Jarky0/apexcharts-card/commit/f188dfa))
+* Chore: Update cSpell dictionary with component-specific terms ([a9cb9a1](https://github.com/Jarky0/apexcharts-card/commit/a9cb9a1))
+* Chore: Update dependencies ([c9a0fdc](https://github.com/Jarky0/apexcharts-card/commit/c9a0fdc))
+* Chore: Update ESLint related dependencies to latest ([612b4cc](https://github.com/Jarky0/apexcharts-card/commit/612b4cc))
+* Chore: Update Rollup, Jest, and related dev dependencies ([7985e8b](https://github.com/Jarky0/apexcharts-card/commit/7985e8b))
+* Merge branch 'master' of https://github.com/Jarky0/apexcharts-card ([4b36c85](https://github.com/Jarky0/apexcharts-card/commit/4b36c85))
+* Refactor: Apply code formatting and remove polyfill ([229be70](https://github.com/Jarky0/apexcharts-card/commit/229be70))
+* Refactor: Migrate ESLint config to JSON and update related files ([f1e0c49](https://github.com/Jarky0/apexcharts-card/commit/f1e0c49))
+* Fix: Correct TypeScript errors and typos in component ([c4407a7](https://github.com/Jarky0/apexcharts-card/commit/c4407a7))
+
 ## [2.2.0](https://github.com/Jarky0/apexcharts-card/compare/v2.1.2...v2.2.0) (2025-04-04)
 
 
