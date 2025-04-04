@@ -1,3 +1,10 @@
+## [2.2.0](https://github.com/Jarky0/apexcharts-card/compare/v2.1.2...v2.2.0) (2025-04-04)
+
+
+### Features
+
+* upgrade to Node.js 20.x LTS ([65f328c](https://github.com/Jarky0/apexcharts-card/commit/65f328cc1a8ce209adbd0dd3ecfa37ba83b8ba12))
+
 ### [2.1.2](https://github.com/RomRider/apexcharts-card/compare/v2.1.1...v2.1.2) (2024-07-10)
 
 
