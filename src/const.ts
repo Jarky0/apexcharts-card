@@ -1,9 +1,18 @@
-import Moment from 'moment-timezone';
-import { extendMoment } from 'moment-range';
+import momentTimezone from 'moment-timezone';
+// import * as MomentRange from 'moment-range'; // Entfernt
 import momentDurationFormatSetup from 'moment-duration-format';
+// Entferne ungenutzte Importe
+// import { GroupByFill, GroupByFunc } from './types-config';
 
-momentDurationFormatSetup(Moment);
-export const moment = extendMoment(Moment);
+// Wende moment-duration-format an
+momentDurationFormatSetup(momentTimezone as any);
+// Entferne den extendMoment Aufruf
+// const momentRange = MomentRange.default;
+// momentRange.extendMoment(momentTimezone);
+
+// Exportiere das (nur mit duration format) erweiterte moment-timezone als 'moment'
+export const moment = momentTimezone;
+
 export const ONE_HOUR = 1000 * 3600;
 export const HOUR_24 = ONE_HOUR * 24;
 

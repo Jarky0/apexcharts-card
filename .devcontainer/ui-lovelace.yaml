@@ -1377,8 +1377,6 @@ views:
               duration: 1min
             type: column
             name: tes2t
-            group_by:
-              duration: 1min
             show:
               in_legend: false
               in_header: false
@@ -1387,7 +1385,6 @@ views:
             type: column
             show:
               in_header: false
-            # name: pioup
           - entity: sensor.random_0_1000
             type: column
             show:
@@ -1402,4 +1399,3 @@ views:
               in_header: true
             group_by:
               duration: 1min
-            # stack_group: group1

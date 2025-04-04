@@ -1,10 +1,28 @@
 {
   "name": "ApexCharts-card Development",
-  "image": "ghcr.io/ludeeus/devcontainer/generic:stable",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
   "context": "..",
-  "remoteUser": "vscode",
-  "appPort": ["8123:8123", "5000:5000"],
-  "postCreateCommand": "npm ci && sudo container install",
+  "remoteUser": "node",
+  "appPort": [],
+  "forwardPorts": [8123, 3000],
+  "portsAttributes": {
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Development Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "npm ci && pip3 install homeassistant",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
   "extensions": [
     "github.vscode-pull-request-github",
     "eamodio.gitlens",
@@ -13,12 +31,13 @@
     "yzhang.markdown-all-in-one",
     "esbenp.prettier-vscode",
     "bierner.lit-html",
-    "cschleiden.vscode-github-actions"
+    "cschleiden.vscode-github-actions",
+    "ms-vscode.vscode-typescript-next",
+    "streetsidesoftware.code-spell-checker"
   ],
   "settings": {
     "files.eol": "\n",
     "editor.tabSize": 2,
-    "terminal.integrated.shell.linux": "/bin/bash",
     "editor.formatOnPaste": false,
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
@@ -32,6 +51,18 @@
       "**/.hg/store/**": true,
       "**/.rpt2_cache/**": true
     },
-    "markdown.extension.tableFormatter.enabled": false
+    "markdown.extension.tableFormatter.enabled": false,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
+  },
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gitconfig,target=/home/node/.gitconfig,type=bind,consistency=cached"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
   }
 }

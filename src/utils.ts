@@ -1,5 +1,5 @@
 import { HassEntities, HassEntity } from 'home-assistant-js-websocket';
-import { compress as lzStringCompress, decompress as lzStringDecompress } from 'lz-string';
+import * as lzString from 'lz-string';
 import { ChartCardConfig, EntityCachePoints } from './types';
 import { TinyColor } from '@ctrl/tinycolor';
 import parse from 'parse-duration';
@@ -9,13 +9,13 @@ import { formatNumber, FrontendLocaleData, HomeAssistant } from 'custom-card-hel
 import { OverrideFrontendLocaleData } from './types-ha';
 
 export function compress(data: unknown): string {
-  return lzStringCompress(JSON.stringify(data));
+  return lzString.compress(JSON.stringify(data));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decompress(data: unknown | undefined): any | undefined {
   if (data !== undefined && typeof data === 'string') {
-    const dec = lzStringDecompress(data);
+    const dec = lzString.decompress(data);
     return dec && JSON.parse(dec);
   }
   return data;
@@ -121,7 +121,7 @@ export function computeTextColor(backgroundColor: string): string {
 
 export function validateInterval(interval: string, prefix: string): number {
   const parsed = parse(interval);
-  if (parsed === undefined) {
+  if (parsed === null || parsed === undefined) {
     throw new Error(`'${prefix}: ${interval}' is not a valid range of time`);
   }
   return parsed;
@@ -294,19 +294,30 @@ export function getLang(config: ChartCardConfig | undefined, hass: HomeAssistant
 export function truncateFloat(
   value: string | number | null | undefined,
   precision: number | undefined,
-): string | number | null {
-  let lValue: string | number | null | undefined = value;
-  if (lValue === undefined) return null;
-  if (typeof lValue === 'string') {
-    lValue = parseFloat(lValue);
-    if (Number.isNaN(lValue)) {
-      return lValue;
+): string | number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  let numValue: number;
+
+  if (typeof value === 'string') {
+    numValue = parseFloat(value);
+    if (Number.isNaN(numValue)) {
+      return value;
     }
+  } else {
+    numValue = value;
   }
-  if (lValue !== null && typeof lValue === 'number' && !Number.isInteger(lValue)) {
-    lValue = (lValue as number).toFixed(precision === undefined ? DEFAULT_FLOAT_PRECISION : precision);
+
+  if (Number.isInteger(numValue)) {
+    return numValue;
   }
-  return lValue;
+
+  const p = precision === undefined ? DEFAULT_FLOAT_PRECISION : precision;
+  const factor = Math.pow(10, p);
+  const truncatedValue = Math.floor(numValue * factor) / factor;
+
+  return truncatedValue;
 }
 
 export function myFormatNumber(

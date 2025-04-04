@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable max-classes-per-file */
-import type { Ripple } from '@material/mwc-ripple';
+import { MdRipple } from '@material/web/ripple/ripple.js';
 import { noChange } from 'lit';
 import { AttributePart, directive, Directive, DirectiveParameters } from 'lit/directive.js';
 import { fireEvent } from './fire-event';
@@ -10,10 +10,11 @@ import { ActionHandlerOptions } from './types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0;
 
-interface ActionHandler extends HTMLElement {
+export interface ActionHandler extends HTMLElement {
   holdTime: number;
   bind(element: Element, options?: ActionHandlerOptions): void;
 }
+
 interface ActionHandlerElement extends HTMLElement {
   actionHandler?: {
     options: ActionHandlerOptions;
@@ -29,10 +30,10 @@ declare global {
   }
 }
 
-class ActionHandler extends HTMLElement implements ActionHandler {
+export class ActionHandler extends HTMLElement implements ActionHandler {
   public holdTime = 500;
 
-  public ripple: Ripple;
+  public ripple: MdRipple;
 
   protected timer?: number;
 
@@ -44,7 +45,7 @@ class ActionHandler extends HTMLElement implements ActionHandler {
 
   constructor() {
     super();
-    this.ripple = document.createElement('mwc-ripple');
+    this.ripple = document.createElement('md-ripple') as MdRipple;
   }
 
   public connectedCallback() {
@@ -58,7 +59,6 @@ class ActionHandler extends HTMLElement implements ActionHandler {
     });
 
     this.appendChild(this.ripple);
-    this.ripple.primary = true;
 
     ['touchcancel', 'mouseout', 'mouseup', 'touchmove', 'mousewheel', 'wheel', 'scroll'].forEach((ev) => {
       document.addEventListener(
@@ -193,12 +193,11 @@ class ActionHandler extends HTMLElement implements ActionHandler {
       display: null,
     });
     this.ripple.disabled = false;
-    this.ripple.startPress();
-    this.ripple.unbounded = true;
+    this.ripple.attach(this);
   }
 
   private stopAnimation() {
-    this.ripple.endPress();
+    this.ripple.detach();
     this.ripple.disabled = true;
     this.style.display = 'none';
   }

@@ -4,10 +4,10 @@ about: Suggest an idea for this project
 title: ''
 labels: feature-request
 assignees: ''
-
 ---
 
 **Checklist**
+
 - [ ] I am running the latest version of the card
 - [ ] I checked if there isn't another feature request opened with the same request
 - [ ] I checked that the feature is not already available in the `dev` branch

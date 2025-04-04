@@ -13,12 +13,17 @@ import {
 import { compress, decompress, log } from './utils';
 import localForage from 'localforage';
 import { HassEntity } from 'home-assistant-js-websocket';
-import { DateRange } from 'moment-range';
 import { DEFAULT_STATISTICS_PERIOD, DEFAULT_STATISTICS_TYPE, moment } from './const';
 import parse from 'parse-duration';
 import SparkMD5 from 'spark-md5';
 import { ChartCardSpanExtConfig, StatisticsPeriod } from './types-config';
 import * as pjson from '../package.json';
+import momentTimezone from 'moment-timezone';
+import * as MomentRange from 'moment-range';
+
+// Wende moment-range lokal auf moment-timezone an
+const momentRange = MomentRange.default;
+momentRange.extendMoment(momentTimezone);
 
 export default class GraphEntry {
   private _computedHistory?: EntityCachePoints;
@@ -374,8 +379,9 @@ export default class GraphEntry {
       return false;
     }
     if (this._config.group_by.func !== 'raw') {
-      const res: EntityCachePoints = this._dataBucketer(history, moment.range(startHistory, end)).map((bucket) => {
-        return [bucket.timestamp, this._func(bucket.data)];
+      const res: EntityCachePoints = this._dataBucketer(history, momentRange.range(startHistory, end)).map((bucket) => {
+        const value = bucket.length > 0 ? this._func(bucket) : null;
+        return [bucket.timestamp, value];
       });
       if ([undefined, 'line', 'area'].includes(this._config.type)) {
         while (res.length > 0 && res[0][1] === null) res.shift();
@@ -486,8 +492,8 @@ export default class GraphEntry {
     return undefined;
   }
 
-  private _dataBucketer(history: EntityEntryCache, timeRange: DateRange): HistoryBuckets {
-    const ranges = Array.from(timeRange.reverseBy('milliseconds', { step: this._groupByDurationMs })).reverse();
+  private _dataBucketer(history: EntityCachePoints, range: moment.MomentTimeSpan): HistoryBuckets {
+    const ranges = Array.from(range.reverseBy('milliseconds', { step: this._groupByDurationMs })).reverse();
     // const res: EntityCachePoints[] = [[]];
     const buckets: HistoryBuckets = [];
     ranges.forEach((range, index) => {

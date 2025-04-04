@@ -1,4 +1,3 @@
-import 'array-flat-polyfill';
 import { LitElement, html, TemplateResult, PropertyValues, CSSResultGroup } from 'lit';
 import { property, customElement, eventOptions } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
@@ -42,7 +41,6 @@ import {
   computeTimezoneDiffWithLocal,
 } from './utils';
 import ApexCharts from 'apexcharts';
-import { Ripple } from '@material/mwc-ripple';
 import { stylesApex } from './styles';
 import { HassEntity } from 'home-assistant-js-websocket';
 import { getBrushLayoutConfig, getLayoutConfig } from './apex-layouts';
@@ -652,16 +650,16 @@ class ChartsCard extends LitElement {
           this._config?.header?.title_actions?.hold_action.action !== 'none',
       })}
       @focus="${(ev) => {
-        this.handleRippleFocus(ev, 'title');
+        this.handleRippleFocus();
       }}"
       @blur="${(ev) => {
-        this.handleRippleBlur(ev, 'title');
+        this.handleRippleBlur();
       }}"
       @mousedown="${(ev) => {
-        this.handleRippleActivate(ev, 'title');
+        this.handleRippleActivate();
       }}"
       @mouseup="${(ev) => {
-        this.handleRippleDeactivate(ev, 'title');
+        this.handleRippleDeactivate();
       }}"
       @touchstart="${(ev) => {
         this.handleRippleActivate(ev, 'title');
@@ -731,8 +729,8 @@ class ChartsCard extends LitElement {
                     >${this._headerState?.[index] === 0
                       ? 0
                       : serie.show.as_duration
-                      ? prettyPrintTime(this._headerState?.[index], serie.show.as_duration)
-                      : this._computeLastState(this._headerState?.[index], index) || NO_VALUE}</span
+                        ? prettyPrintTime(this._headerState?.[index], serie.show.as_duration)
+                        : this._computeLastState(this._headerState?.[index], index) || NO_VALUE}</span
                   >
                   ${!serie.show.as_duration
                     ? html`<span id="uom">${computeUom(index, this._config?.series, this._entities)}</span>`
@@ -1536,23 +1534,27 @@ class ChartsCard extends LitElement {
   // backward compatibility
   @eventOptions({ passive: true })
   private handleRippleActivate(evt: Event, index: number | string): void {
-    const r = this.shadowRoot?.getElementById(`ripple-${index}`) as Ripple;
-    r && typeof r.startFocus === 'function' && r.startPress(evt);
+    // Entferne den Aufruf von beginPress
+    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
+    // r && r.beginPress();
   }
 
   private handleRippleDeactivate(_, index: number | string): void {
-    const r = this.shadowRoot?.getElementById(`ripple-${index}`) as Ripple;
-    r && typeof r.startFocus === 'function' && r.endPress();
+    // Entferne den Aufruf von endPress
+    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
+    // r && r.endPress();
   }
 
   private handleRippleFocus(_, index: number | string): void {
-    const r = this.shadowRoot?.getElementById(`ripple-${index}`) as Ripple;
-    r && typeof r.startFocus === 'function' && r.startFocus();
+    // Entferne den Aufruf von beginHover
+    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
+    // r && r.beginHover();
   }
 
   private handleRippleBlur(_, index: number | string): void {
-    const r = this.shadowRoot?.getElementById(`ripple-${index}`) as Ripple;
-    r && typeof r.startFocus === 'function' && r.endFocus();
+    // Entferne den Aufruf von endHover
+    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
+    // r && r.endHover();
   }
 
   public getCardSize(): number {
