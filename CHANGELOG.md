@@ -1,3 +1,12 @@
+## <small>2.3.1 (2025-04-04)</small>
+
+* perf: Improve performance across various components ([d1bbae9](https://github.com/Jarky0/apexcharts-card/commit/d1bbae9))
+* Refactor: Optimize performance and reduce dependencies ([b2fc26b](https://github.com/Jarky0/apexcharts-card/commit/b2fc26b))
+* Refactor: Update various source files ([a216c23](https://github.com/Jarky0/apexcharts-card/commit/a216c23))
+* Fix: Correct typos and update cspell dictionary ([fdcfc5c](https://github.com/Jarky0/apexcharts-card/commit/fdcfc5c))
+* Fix: Resolve various linting errors and warnings ([bc1820e](https://github.com/Jarky0/apexcharts-card/commit/bc1820e))
+* Merge branch 'master' of https://github.com/Jarky0/apexcharts-card ([31076ce](https://github.com/Jarky0/apexcharts-card/commit/31076ce))
+
 ## 2.3.0 (2025-04-04)
 
 * feat(lint): Migrate ESLint to v9 flat config ([6e39ade](https://github.com/Jarky0/apexcharts-card/commit/6e39ade))
