@@ -21,7 +21,10 @@ const serveopts = {
 
 const plugins = [
   nodeResolve({}),
-  commonjs(),
+  commonjs({
+    transformMixedEsModules: true,
+    requireReturnsDefault: 'auto',
+  }),
   typescript(),
   json(),
   babel({
@@ -63,5 +66,6 @@ export default [
     watch: {
       exclude: 'node_modules/**',
     },
+    context: 'window',
   },
 ];
