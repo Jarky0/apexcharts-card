@@ -19,7 +19,7 @@ Thumbs.db
 # IDE specific files
 .vscode/
 .idea/
-.cursor/
+.cursor*
 
 # Test / Coverage reports
 coverage/

@@ -12,11 +12,12 @@ export interface ChartCardConfig extends ChartCardExternalConfig {
   series: ChartCardSeriesConfig[];
   series_in_graph: ChartCardSeriesConfig[];
   series_in_brush: ChartCardSeriesConfig[];
-  graph_span: string;
+  graph_span: number;
   cache: boolean;
-  useCompress: boolean;
+  useCompress?: boolean;
   apex_config?: ApexOptions;
   yaxis?: ChartCardYAxis[];
+  editMode?: boolean;
 }
 
 export interface ChartCardSeriesConfig extends ChartCardSeriesExternalConfig {
@@ -88,6 +89,7 @@ export interface ChartCardYAxis extends ChartCardYAxisExternal {
   series_id?: number[];
   min_type?: minmax_type;
   max_type?: minmax_type;
+  logarithmic?: boolean;
 }
 
 export enum minmax_type {

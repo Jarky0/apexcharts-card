@@ -8,14 +8,16 @@ export interface ChartCardExternalConfig {
     disable_config_validation?: boolean;
     hidden_by_default?: boolean;
     brush?: boolean;
+    show_last_updated?: boolean;
+    xaxis_time_format?: string;
   };
   hours_12?: boolean;
   chart_type?: ChartCardChartType;
-  update_interval?: string;
-  update_delay?: string;
+  update_interval?: number;
+  update_delay?: number;
   all_series_config?: ChartCardAllSeriesExternalConfig;
   series: ChartCardSeriesExternalConfig[];
-  graph_span?: string;
+  graph_span?: number;
   span?: ChartCardSpanExtConfig;
   now?: {
     show?: boolean;
@@ -43,12 +45,15 @@ export interface ChartCardExternalConfig {
   view_index?: number;
   brush?: ChartCardBrushExtConfig;
   yaxis?: ChartCardYAxisExternal[];
+  edit_mode?: boolean;
+  use_duration_format?: boolean;
 }
 
 export type ChartCardChartType = 'line' | 'scatter' | 'pie' | 'donut' | 'radialBar';
 
 export interface ChartCardBrushExtConfig {
   selection_span?: string;
+  height?: number | string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apex_config?: any;
 }
@@ -67,7 +72,7 @@ export interface ChartCardAllSeriesExternalConfig {
   entity?: string;
   attribute?: string;
   name?: string;
-  type?: 'line' | 'column' | 'area';
+  type?: 'line' | 'column' | 'area' | 'scatter' | 'pie' | 'donut' | 'radialBar';
   stack_group?: string;
   color?: string;
   opacity?: number;
@@ -120,12 +125,45 @@ export interface ChartCardSeriesShowConfigExt {
   datalabels?: boolean | 'total' | 'percent';
   hidden_by_default?: boolean;
   extremas?: boolean | 'time' | 'min' | 'max' | 'min+time' | 'max+time';
+  extremas_config?: {
+    marker_size?: number;
+    marker_color?: string;
+    marker_stroke_color?: string;
+    marker_stroke_width?: number;
+    marker_shape?: string;
+    label_border_color?: string;
+    label_border_width?: number;
+    label_border_radius?: number;
+    label_text_anchor?: string;
+    label_orientation?: string;
+    label_offset_x?: number;
+    label_offset_y?: number;
+    label_background?: string;
+    label_color?: string;
+    label_font_size?: string;
+    label_font_weight?: number;
+    label_font_family?: string;
+    label_padding_left?: number;
+    label_padding_right?: number;
+    label_padding_top?: number;
+    label_padding_bottom?: number;
+    label_text?: {
+      min?: string;
+      max?: string;
+    };
+  };
   in_brush?: boolean;
   offset_in_name?: boolean;
 }
 
 export interface ChartCardSeriesExternalConfig extends ChartCardAllSeriesExternalConfig {
   entity: string;
+  header_config?: {
+    show_state?: boolean;
+    show_uom?: boolean;
+    show_name?: boolean;
+  };
+  period?: StatisticsPeriod; // Für DEFAULT_STATISTICS_PERIOD
 }
 
 export type ChartCardPrettyTime = 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
@@ -159,6 +197,7 @@ export interface ChartCardYAxisExternal {
   max?: 'auto' | number | string;
   align_to?: number;
   decimals?: number;
+  logarithmic?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apex_config?: any;
 }

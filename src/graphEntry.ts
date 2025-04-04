@@ -79,7 +79,7 @@ export default class GraphEntry {
     this._realEnd = new Date();
     this._realStart = new Date();
     // Valid because tested during init;
-     
+
     this._groupByDurationMs = parse(this._config.group_by.duration)!;
     this._md5Config = SparkMD5.hash(`${this._graphSpan}${JSON.stringify(this._config)}${JSON.stringify(span)}`);
   }
@@ -217,7 +217,6 @@ export default class GraphEntry {
 
     let history = this._cache ? await this._getCache(this._entityID, this._useCompress) : undefined;
     if (!history || !history.card_version || history.card_version !== pjson.version) {
-       
       startHistory = new Date(0);
       history = undefined;
     }
@@ -265,37 +264,44 @@ export default class GraphEntry {
     item: HassHistoryEntry | StatisticValue,
     lastNonNull: number | null,
   ): [number | null, number | null] {
-    if (this._config.transform) {
-      currentState = this._applyTransform(currentState, item);
+    let state: number | null = null;
+    let currentNonNull = lastNonNull;
+
+    state = this._applyTransform(currentState, item);
+
+    if (state !== null) {
+      currentNonNull = state;
+    } else if (this._config.fill_raw === 'last') {
+      state = lastNonNull;
+    } else if (this._config.fill_raw === 'zero') {
+      state = 0;
     }
-    let stateParsed: number | null = parseFloat(currentState as string);
-    stateParsed = !Number.isNaN(stateParsed) ? stateParsed : null;
-    if (stateParsed === null) {
-      if (this._config.fill_raw === 'zero') {
-        stateParsed = 0;
-      } else if (this._config.fill_raw === 'last') {
-        stateParsed = lastNonNull;
-      }
-    } else {
-      lastNonNull = stateParsed;
-    }
-    return [lastNonNull, stateParsed];
+
+    return [state, currentNonNull];
   }
 
   private _applyTransform(value: unknown, historyItem: HassHistoryEntry | StatisticValue): number | null {
-    // Add try-catch around transform execution
-    try {
-       
-      const func = new Function('x', 'entity', 'entities', 'hass', 'states', `'use strict'; ${this._config.transform}`);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const transformed = func(value, this._entityState, (this._hass as any)?.states, this._hass, historyItem);
-      return transformed === undefined || transformed === null || Number.isNaN(transformed)
-        ? null
-        : Number(transformed);
-    } catch (e) {
-      log(`Error applying transform function: ${e}`);
-      return null; // Return null or original value on error?
+    if (value === null || typeof value === 'undefined' || value === 'unavailable' || value === 'unknown') return null;
+    let numValue = Number(value);
+    if (Number.isNaN(numValue)) return null;
+    if (this._config.transform) {
+      try {
+        const func = new Function('x', 'item', `'use strict'; ${this._config.transform}`);
+        numValue = func(numValue, historyItem);
+        if (typeof numValue !== 'number' || Number.isNaN(numValue)) {
+          throw new Error(`Transform function returned non-numeric value or NaN: ${numValue}`);
+        }
+      } catch (e) {
+        console.error(
+          `Error evaluating transform function for ${this._entityID}:`,
+          e,
+          `Function: ${this._config.transform}`,
+          `Input: ${value}`,
+        );
+        return null;
+      }
     }
+    return numValue;
   }
 
   private async _fetchRecent(
@@ -304,16 +310,23 @@ export default class GraphEntry {
     skipInitialState: boolean,
   ): Promise<HassHistory | undefined> {
     let url = 'history/period';
-    if (start) url += `/${start.toISOString()}`;
-    url += `?filter_entity_id=${this._entityID}`;
-    if (end) url += `&end_time=${end.toISOString()}`;
-    if (skipInitialState) url += '&skip_initial_state';
-    url += '&significant_changes_only=0';
-    return this._hass?.callApi('GET', url);
+    if (start) url = `${url}/${start.toISOString()}`;
+    url = `${url}?filter_entity_id=${this._entityID}`;
+    if (end) url = `${url}&end_time=${end.toISOString()}`;
+    url = `${url}&minimal_response`; // Don't retrieve attributes
+    url = `${url}&no_attributes`; // Don't retrieve attributes
+    if (skipInitialState) url = `${url}&skip_initial_state`; // Don't retrieve attributes
+
+    try {
+      return await this._hass?.callApi<HassHistory>('GET', url);
+    } catch (err) {
+      console.error(`Error fetching recent history for ${this._entityID}:`, err);
+      // Don't rethrow, just return undefined
+      return undefined;
+    }
   }
 
   private async _generateData(start: Date, end: Date): Promise<EntityEntryCache> {
-     
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     let data;
     // Add try-catch around data_generator execution
@@ -332,12 +345,9 @@ export default class GraphEntry {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       const funcTrimmed =
-         
         this._config.data_generator!.length <= 100
-          ?  
-            this._config.data_generator!.trim()
-          :  
-            `${this._config.data_generator!.trim().substring(0, 98)}...`;
+          ? this._config.data_generator!.trim()
+          : `${this._config.data_generator!.trim().substring(0, 98)}...`;
       // Modify error message to be more informative
       const errorMessage = `Error executing data_generator for ${this._entityID}: ${e.message} in '${funcTrimmed}'`;
       log(errorMessage);
@@ -360,47 +370,45 @@ export default class GraphEntry {
     end: Date | undefined,
     period: StatisticsPeriod = DEFAULT_STATISTICS_PERIOD,
   ): Promise<EntityCachePoints | undefined> {
-    const statistics = await this._hass?.callWS<Statistics>({
+    if (!this._hass) return undefined;
+    // Ensure msg conforms to MessageBase
+    const msg = {
       type: 'recorder/statistics_during_period',
-      start_time: start?.toISOString(),
-      end_time: end?.toISOString(),
+      start_time: start?.toISOString() || '',
+      end_time: end?.toISOString() || '',
       statistic_ids: [this._entityID],
-      period,
-    });
-    if (statistics && this._entityID in statistics) {
-      const stats = statistics[this._entityID];
-      let lastNonNull: number | null = null;
-      return stats.map((item) => {
-        let stateParsed: number | null = null;
-        [lastNonNull, stateParsed] = this._transformAndFill(
-          item[this._config.statistics?.type || DEFAULT_STATISTICS_TYPE],
-          item,
-          lastNonNull,
-        );
-        let displayDate: Date | null = null;
-        const startDate = new Date(item.start);
-        if (!this._config.statistics?.align || this._config.statistics?.align === 'middle') {
-          if (this._config.statistics?.period === '5minute') {
-            displayDate = new Date(startDate.getTime() + 150000); // 2min30s
-          } else if (!this._config.statistics?.period || this._config.statistics.period === 'hour') {
-            displayDate = new Date(startDate.getTime() + 1800000); // 30min
-          } else if (this._config.statistics.period === 'day') {
-            displayDate = new Date(startDate.getTime() + 43200000); // 12h
-          } else if (this._config.statistics.period === 'week') {
-            displayDate = new Date(startDate.getTime() + 259200000); // 3.5d
-          } else {
-            displayDate = new Date(startDate.getTime() + 1296000000); // 15d
-          }
-        } else if (this._config.statistics.align === 'start') {
-          displayDate = new Date(item.start);
-        } else {
-          displayDate = new Date(item.end);
-        }
+      period: period,
+      types: [DEFAULT_STATISTICS_TYPE], // Only support sum for now
+      id: 1, // Add required id property
+    };
 
-        return [displayDate.getTime(), !Number.isNaN(stateParsed) ? stateParsed : null];
-      });
+    let statisticsResult: Record<string, StatisticValue[]> | undefined;
+    try {
+      // Use Record<string, StatisticValue[]> for the expected result type
+      statisticsResult = await this._hass.callWS<Record<string, StatisticValue[]>>(msg);
+    } catch (err) {
+      console.error(`Error fetching statistics for ${this._entityID}:`, err);
+      // Don't rethrow, return empty array
+      return [];
     }
-    return undefined;
+
+    if (!statisticsResult || Object.keys(statisticsResult).length === 0) return [];
+
+    const stats = statisticsResult[this._entityID];
+    if (!stats || !Array.isArray(stats)) return []; // Check if stats is an array
+
+    let lastNonNullState: number | null = null;
+    const history: EntityCachePoints = stats.map((item: StatisticValue) => {
+      // Explicitly type item
+      // Adjust comparison based on the structure of series config for statistics
+      const statValue = this._config.statistics?.type === 'sum' ? item.sum : item.state;
+      const [state, lastNonNull] = this._transformAndFill(statValue, item, lastNonNullState);
+      lastNonNullState = lastNonNull;
+      const date = new Date(item.start);
+      const timestamp = date.getTime();
+      return [timestamp, state];
+    });
+    return history;
   }
 
   private _dataBucketer(history: EntityCachePoints, start: Date, end: Date): HistoryBuckets {
@@ -475,10 +483,8 @@ export default class GraphEntry {
     return items.reduce((sum, entry, index) => {
       let val = 0;
       if (entry && entry[1] === null) {
-         
         val = items[lastIndex][1]!;
       } else {
-         
         val = entry[1]!;
         lastIndex = index;
       }
@@ -523,13 +529,12 @@ export default class GraphEntry {
   }
 
   private _median(items: EntityCachePoints) {
-     
     const itemsDup = this._filterNulls([...items]).sort((a, b) => a[1]! - b[1]!);
     if (itemsDup.length === 0) return null;
     if (itemsDup.length === 1) return itemsDup[0][1];
     const mid = Math.floor((itemsDup.length - 1) / 2);
     if (itemsDup.length % 2 === 1) return itemsDup[mid][1];
-     
+
     return (itemsDup[mid][1]! + itemsDup[mid + 1][1]!) / 2;
   }
 
@@ -554,23 +559,50 @@ export default class GraphEntry {
   }
 
   private async _fetchHistory(start: Date, end: Date): Promise<EntityCachePoints | undefined> {
-    if (this._config.statistics) {
-      return this._fetchStatistics(start, end, this._config.statistics.period);
-    }
-    const newHistory = await this._fetchRecent(start, end, false); // Assuming skipInitialState = false for simplicity
-    if (newHistory && newHistory[0] && newHistory[0].length > 0) {
-      let lastNonNull: number | null = null;
-      return newHistory[0].map((item) => {
-        const currentState: unknown = this._config.attribute ? item.attributes?.[this._config.attribute] : item.state;
-        let stateParsed: number | null = null;
-        [lastNonNull, stateParsed] = this._transformAndFill(currentState, item, lastNonNull);
-        return [
-          new Date(this._config.attribute ? item.last_updated : item.last_changed).getTime(),
-          !Number.isNaN(stateParsed) ? stateParsed : null,
-        ];
+    try {
+      const hist = await this._fetchRecent(start, end, false);
+      // Ensure hist and hist[0] are valid before accessing length
+      if (!hist || !Array.isArray(hist) || hist.length === 0) return [];
+      if (!Array.isArray(hist[0])) return [];
+      const minLength = 1;
+      if (hist[0].length < minLength) return [];
+
+      let lastState: unknown = hist[0][0].state;
+      let lastNonNullState: number | null = null;
+      const history: EntityCachePoints = hist[0].map((item: HassHistoryEntry) => {
+        // Explicitly type item
+        // Use optional chaining for attribute access
+        const stateValue = this._config.attribute ? item.attributes?.[this._config.attribute] : item.state;
+        const [state, lastNonNull] = this._transformAndFill(stateValue, item, lastNonNullState);
+        lastState = item.state; // Update lastState for fill_raw: last
+        lastNonNullState = lastNonNull;
+        const date = new Date(item.last_changed);
+        const timestamp = date.getTime();
+        return [timestamp, state];
       });
+
+      // Fill start
+      if (this._config.group_by.start_with_last && history.length > 0) {
+        const value = history[0][1];
+        history.unshift([start.getTime(), value]);
+      }
+
+      // fill end
+      if (history.length > 0 && this._config.extend_to) {
+        const value =
+          this._config.fill_raw === 'last'
+            ? this._transformAndFill(lastState, hist[0][hist[0].length - 1], lastNonNullState)[0]
+            : this._config.fill_raw === 'zero'
+              ? 0
+              : null;
+        history.push([end.getTime(), value]);
+      }
+      return history;
+    } catch (err) {
+      console.error(`Error in _fetchHistory for ${this._entityID}:`, err);
+      // Return empty array instead of throwing
+      return [];
     }
-    return undefined;
   }
 
   private _processHistory(
@@ -579,18 +611,27 @@ export default class GraphEntry {
     _start: Date, // Mark as unused
     _end: Date, // Mark as unused
   ): EntityCachePoints {
-    // Simple concatenation and sorting, might need more sophisticated logic
-    const combined = [...oldHistory, ...newHistory];
-    combined.sort((a, b) => a[0] - b[0]);
-    // Remove duplicates based on timestamp (keeping the last one)
-    const unique: EntityCachePoints = [];
-    const timestamps = new Set<number>();
-    for (let i = combined.length - 1; i >= 0; i--) {
-      if (!timestamps.has(combined[i][0])) {
-        unique.unshift(combined[i]);
-        timestamps.add(combined[i][0]);
-      }
+    if (!newHistory || newHistory.length === 0) {
+      return oldHistory || [];
     }
-    return unique;
+
+    let processedHistory = oldHistory ? [...oldHistory] : [];
+
+    // Remove points from old history that are within the new history's time range
+    const firstNewTimestamp = newHistory[0][0];
+    processedHistory = processedHistory.filter((point) => point[0] < firstNewTimestamp);
+
+    // Append new history
+    processedHistory.push(...newHistory);
+
+    // Sort by timestamp (just in case)
+    processedHistory.sort((a, b) => a[0] - b[0]);
+
+    // Remove duplicate timestamps (keeping the latest entry)
+    processedHistory = processedHistory.filter(
+      (point, index, self) => index === self.findIndex((p) => p[0] === point[0]),
+    );
+
+    return processedHistory;
   }
 }
