@@ -283,7 +283,7 @@ export function mergeConfigTemplates(ll: any, config: ChartCardExternalConfig): 
   const tpls = tpl && Array.isArray(tpl) ? tpl : [tpl];
   tpls?.forEach((template) => {
     if (!ll.config.apexcharts_card_templates?.[template])
-      throw new Error(`apexchart-card template '${template}' is missing from your config!`);
+      throw new Error(`apexcharts-card template '${template}' is missing from your config!`);
     const res = mergeConfigTemplates(ll, JSON.parse(JSON.stringify(ll.config.apexcharts_card_templates[template])));
     result = mergeDeepConfig(result, res);
   });
@@ -454,7 +454,7 @@ export function computeTimezoneDiffWithLocal(timezone: string | undefined): numb
   try {
     const now = new Date();
     // Get offset string like GMT+X or GMT-X using Intl API
-    const formatter = new Intl.DateTimeFormat('en- পোস্টফিক্স', { timeZone: timezone, timeZoneName: 'longOffset' }); // Use 'en-u-nu-latn' or similar stable locale
+    const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, timeZoneName: 'longOffset' }); // Use 'en-GB' or similar stable locale instead of 'en-GB'
     const parts = formatter.formatToParts(now);
     const offsetString = parts.find((part) => part.type === 'timeZoneName')?.value; // e.g., GMT+01:00
 
