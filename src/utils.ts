@@ -26,7 +26,6 @@ export function getMilli(hours: number): number {
 }
 
 export function log(message: unknown): void {
-  // eslint-disable-next-line no-console
   console.warn('apexcharts-card: ', message);
 }
 
@@ -36,7 +35,7 @@ export function log(message: unknown): void {
  *
  * @author inspired by [jhildenbiddle](https://stackoverflow.com/a/48218209).
  */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mergeDeep(target: any, source: any): any {
   const isObject = (obj) => obj && typeof obj === 'object';
 
@@ -162,7 +161,7 @@ function formatDuration(ms: number): string {
     if (remainingMs >= unitMs) {
       const value = Math.floor(remainingMs / unitMs);
       // Use abbreviations consistent with moment's format (y, d, h, m, s)
-      let abbr = unit.charAt(0); // y, d, h, m, s
+      const abbr = unit.charAt(0); // y, d, h, m, s
       parts.push(`${value}${abbr}`);
       remainingMs %= unitMs;
     }
@@ -274,7 +273,7 @@ export function interpolateColor(a: string, b: string, factor: number): string {
   return `#${(((1 << 24) + (rr << 16) + (rg << 8) + rb) | 0).toString(16).slice(1)}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mergeConfigTemplates(ll: any, config: ChartCardExternalConfig): ChartCardExternalConfig {
   const tpl = config.config_templates;
   if (!tpl) return config;
@@ -291,9 +290,9 @@ export function mergeConfigTemplates(ll: any, config: ChartCardExternalConfig): 
   return result as ChartCardExternalConfig;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mergeDeepConfig(target: any, source: any): any {
-  const isObject = (obj) => obj && typeof obj === 'object';
+  const isObject = (obj: unknown): obj is Record<string, unknown> => obj !== null && typeof obj === 'object';
 
   if (!isObject(target) || !isObject(source)) {
     return source;
@@ -323,7 +322,7 @@ export function is12HourFromLocale(locale: string): boolean {
     );
     // A simple check, might need refinement for specific locales
     return /am|pm/i.test(formattedTime);
-  } catch (e) {
+  } catch {
     // Fallback if Intl fails for the locale
     return false;
   }
@@ -381,7 +380,7 @@ export function formatApexDate(
         withDate ? { ...dateOptions, ...timeOptions } : timeOptions,
       );
       return fallbackFormatter.format(value);
-    } catch (fallbackErr) {
+    } catch {
       // Final fallback to basic ISO string part if everything fails
       return value.toISOString();
     }
