@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+ 
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // From https://github.com/epoberezkin/fast-deep-equal
@@ -106,6 +106,6 @@ export const deepEqual = (a: any, b: any): boolean => {
   }
 
   // true if both NaN, false otherwise
-  // eslint-disable-next-line no-self-compare
+   
   return a !== a && b !== b;
 };

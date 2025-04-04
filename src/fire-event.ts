@@ -54,7 +54,7 @@ export interface HASSDomEvent<T> extends Event {
  *  `node` on which to fire the event (HTMLElement, defaults to `this`).
  * @return {Event} The new event that was fired.
  */
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+ 
 export const fireEvent = <HassEvent extends ValidHassDomEvent>(
   node: HTMLElement | Window,
   type: HassEvent,

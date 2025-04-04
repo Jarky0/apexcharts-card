@@ -269,7 +269,7 @@ function getXTooltipFormatter(
   let hours12: any = undefined;
   const lang = config.locale || hass?.language || 'en';
   hours12 = is12Hour(config, hass) ? { hour12: true } : { hourCycle: 'h23' };
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+   
   return parse(config.graph_span)! < HOUR_24 && !config.span?.offset
     ? function (val, _a, _b, hours_12 = hours12) {
         return new Intl.DateTimeFormat(lang, {
@@ -281,7 +281,7 @@ function getXTooltipFormatter(
         } as any).format(val);
       }
     : function (val, _a, _b, hours_12 = hours12) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         return new Intl.DateTimeFormat(lang, {
           year: 'numeric',
           month: 'short',
@@ -311,7 +311,7 @@ function getYTooltipFormatter(config: ChartCardConfig, hass: HomeAssistant | und
       hass2?.states[conf.series_in_graph[opts.seriesIndex].entity],
     );
     return conf.series_in_graph[opts.seriesIndex]?.show.as_duration
-      ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      ?  
         [`<strong>${prettyPrintTime(lValue, conf.series_in_graph[opts.seriesIndex].show.as_duration!)}</strong>`]
       : [`<strong>${lValue} ${uom}</strong>`];
   };
@@ -427,7 +427,7 @@ function getLegendFormatter(config: ChartCardConfig, hass: HomeAssistant | undef
         if (conf.series_in_graph[opts.seriesIndex]?.show.as_duration) {
           valueString = `<strong>${prettyPrintTime(
             value,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+             
             conf.series_in_graph[opts.seriesIndex].show.as_duration!,
           )}</strong>`;
         } else {
@@ -484,7 +484,7 @@ function getFillType(config: ChartCardConfig, brush: boolean) {
     const series = brush ? config.series_in_brush : config.series_in_graph;
     return series.map((seriesItem) => {
       if (
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+         
         !PLAIN_COLOR_TYPES.includes(config.chart_type!) &&
         seriesItem.type !== 'column' &&
         seriesItem.color_threshold &&

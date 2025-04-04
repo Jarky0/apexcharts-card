@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable max-classes-per-file */
+ 
+ 
 import { MdRipple } from '@material/web/ripple/ripple.js';
 import { noChange } from 'lit';
 import { AttributePart, directive, Directive, DirectiveParameters } from 'lit/directive.js';
@@ -217,7 +217,7 @@ const getActionHandler = (): ActionHandler => {
   return actionhandler as ActionHandler;
 };
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+ 
 export const actionHandlerBind = (element: ActionHandlerElement, options?: ActionHandlerOptions) => {
   const actionhandler: ActionHandler = getActionHandler();
   if (!actionhandler) {
@@ -233,7 +233,7 @@ export const actionHandler = directive(
       return noChange;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
+     
     render(_options?: ActionHandlerOptions) {}
   },
 );
