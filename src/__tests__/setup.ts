@@ -1,10 +1,10 @@
 import { jest, beforeEach, afterEach } from '@jest/globals';
 
-// Mock für window.matchMedia wurde nach jest.config.cjs verschoben
+// Mock for window.matchMedia was moved to jest.config.cjs
 
 import '@material/web/ripple/ripple.js';
 
-// Mock für Material Web Components
+// Mock for Material Web Components
 jest.mock('@material/web/ripple/ripple.js', () => {
   return {
     MdRipple: class {
@@ -19,7 +19,7 @@ jest.mock('@material/web/ripple/ripple.js', () => {
   };
 });
 
-// Mock für Timer
+// Mock for Timer
 beforeEach(() => {
   jest.useFakeTimers();
 });

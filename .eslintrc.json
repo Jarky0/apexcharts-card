@@ -1,0 +1,33 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "plugin:lit-a11y/recommended"],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "module"
+  },
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "rules": {
+    // Add specific rule overrides here if needed
+    "@typescript-eslint/no-explicit-any": "warn", // Allow any but warn
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    // Disable rules that might conflict with Lit or HA development practices if necessary
+    "no-console": ["warn", { "allow": ["info", "warn", "error"] }]
+  },
+  "ignorePatterns": ["node_modules/", "dist/", "build/"],
+  "overrides": [
+    {
+      "files": ["src/__tests__/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/ban-ts-comment": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-undef": "off"
+      }
+    }
+  ]
+}

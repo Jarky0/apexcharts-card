@@ -21,7 +21,7 @@ import * as pjson from '../package.json';
 import momentTimezone from 'moment-timezone';
 import * as MomentRange from 'moment-range';
 
-// Wende moment-range lokal auf moment-timezone an
+// Apply moment-range locally to moment-timezone
 const momentRange = MomentRange.default;
 momentRange.extendMoment(momentTimezone);
 

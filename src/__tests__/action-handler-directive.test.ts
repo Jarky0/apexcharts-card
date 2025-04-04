@@ -38,7 +38,7 @@ describe('ActionHandler', () => {
 
     mockElement.dispatchEvent(touchStart);
 
-    // Warte auf den Hold-Timer
+    // Wait for the hold timer
     jest.advanceTimersByTime(500);
 
     const touchEnd = new TouchEvent('touchend');

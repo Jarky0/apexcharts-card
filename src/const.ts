@@ -1,23 +1,23 @@
 import momentTimezone from 'moment-timezone';
-// import * as MomentRange from 'moment-range'; // Entfernt
+// import * as MomentRange from 'moment-range'; // Removed
 import momentDurationFormatSetup from 'moment-duration-format';
-// Entferne ungenutzte Importe
+// Remove unused imports
 // import { GroupByFill, GroupByFunc } from './types-config';
 
-// Wende moment-duration-format an
-momentDurationFormatSetup(momentTimezone as any);
-// Entferne den extendMoment Aufruf
+// Apply moment-duration-format
+momentDurationFormatSetup(momentTimezone as unknown as { format: (format: string) => string });
+// Remove the extendMoment call
 // const momentRange = MomentRange.default;
 // momentRange.extendMoment(momentTimezone);
 
-// Exportiere das (nur mit duration format) erweiterte moment-timezone als 'moment'
+// Export the moment-timezone (with duration format only) as 'moment'
 export const moment = momentTimezone;
 
 export const ONE_HOUR = 1000 * 3600;
 export const HOUR_24 = ONE_HOUR * 24;
 
 export const DEFAULT_GRAPH_SPAN = '24h';
-export const DEFAULT_SERIE_TYPE = 'line';
+export const DEFAULT_SERIES_TYPE = 'line';
 export const DEFAULT_DURATION = '1h';
 export const DEFAULT_FUNC = 'raw';
 export const DEFAULT_GROUP_BY_FILL = 'last';

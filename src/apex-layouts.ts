@@ -180,19 +180,23 @@ export function getBrushLayoutConfig(
 
 function getFillOpacity(config: ChartCardConfig, brush: boolean): number[] {
   const series = brush ? config.series_in_brush : config.series_in_graph;
-  return series.map((serie) => {
-    return serie.opacity !== undefined ? serie.opacity : serie.type === 'area' ? DEFAULT_AREA_OPACITY : 1;
+  return series.map((seriesItem) => {
+    return seriesItem.opacity !== undefined
+      ? seriesItem.opacity
+      : seriesItem.type === 'area'
+        ? DEFAULT_AREA_OPACITY
+        : 1;
   });
 }
 
 function getSeries(config: ChartCardConfig, hass: HomeAssistant | undefined, brush: boolean) {
   const series = brush ? config.series_in_brush : config.series_in_graph;
   if (TIMESERIES_TYPES.includes(config.chart_type)) {
-    return series.map((serie, index) => {
+    return series.map((seriesItem, index) => {
       return {
-        name: computeName(index, series, undefined, hass?.states[serie.entity]),
-        group: config.stacked && serie.type === 'column' ? serie.stack_group : undefined,
-        type: serie.type,
+        name: computeName(index, series, undefined, hass?.states[seriesItem.entity]),
+        group: config.stacked && seriesItem.type === 'column' ? seriesItem.stack_group : undefined,
+        type: seriesItem.type,
         data: [],
       };
     });
@@ -205,8 +209,8 @@ function getLabels(config: ChartCardConfig, hass: HomeAssistant | undefined) {
   if (TIMESERIES_TYPES.includes(config.chart_type)) {
     return [];
   } else {
-    return config.series_in_graph.map((serie, index) => {
-      return computeName(index, config.series_in_graph, undefined, hass?.states[serie.entity]);
+    return config.series_in_graph.map((seriesItem, index) => {
+      return computeName(index, config.series_in_graph, undefined, hass?.states[seriesItem.entity]);
     });
   }
 }
@@ -316,8 +320,8 @@ function getYTooltipFormatter(config: ChartCardConfig, hass: HomeAssistant | und
 function getDataLabelsEnabled(config: ChartCardConfig): boolean {
   return (
     !TIMESERIES_TYPES.includes(config.chart_type) ||
-    config.series_in_graph.some((serie) => {
-      return serie.show.datalabels;
+    config.series_in_graph.some((seriesItem) => {
+      return seriesItem.show.datalabels;
     })
   );
 }
@@ -436,19 +440,21 @@ function getLegendFormatter(config: ChartCardConfig, hass: HomeAssistant | undef
 }
 
 function getLegendMarkers(config: ChartCardConfig) {
-  return { size: config.series_in_graph.map((serie) => (serie.show.in_legend ? DEFAULT_LEGEND_MARKER_WIDTH : 0)) };
+  return {
+    size: config.series_in_graph.map((seriesItem) => (seriesItem.show.in_legend ? DEFAULT_LEGEND_MARKER_WIDTH : 0)),
+  };
 }
 
 function getStrokeCurve(config: ChartCardConfig, brush: boolean) {
   const series = brush ? config.series_in_brush : config.series_in_graph;
-  return series.map((serie) => {
-    return serie.curve || 'smooth';
+  return series.map((seriesItem) => {
+    return seriesItem.curve || 'smooth';
   });
 }
 
 function getDataLabels_enabledOnSeries(config: ChartCardConfig) {
-  return config.series_in_graph.flatMap((serie, index) => {
-    return serie.show.datalabels ? [index] : [];
+  return config.series_in_graph.flatMap((seriesItem, index) => {
+    return seriesItem.show.datalabels ? [index] : [];
   });
 }
 
@@ -456,18 +462,18 @@ function getStrokeWidth(config: ChartCardConfig, brush: boolean) {
   if (config.chart_type !== undefined && config.chart_type !== 'line')
     return config.apex_config?.stroke?.width === undefined ? 3 : config.apex_config?.stroke?.width;
   const series = brush ? config.series_in_brush : config.series_in_graph;
-  return series.map((serie) => {
-    if (serie.stroke_width !== undefined) {
-      return serie.stroke_width;
+  return series.map((seriesItem) => {
+    if (seriesItem.stroke_width !== undefined) {
+      return seriesItem.stroke_width;
     }
-    return [undefined, 'line', 'area'].includes(serie.type) ? 5 : 0;
+    return [undefined, 'line', 'area'].includes(seriesItem.type) ? 5 : 0;
   });
 }
 
 function getStrokeDash(config: ChartCardConfig, brush: boolean) {
   const series = brush ? config.series_in_brush : config.series_in_graph;
-  return series.map((serie) => {
-    return serie.stroke_dash;
+  return series.map((seriesItem) => {
+    return seriesItem.stroke_dash;
   });
 }
 
@@ -476,13 +482,13 @@ function getFillType(config: ChartCardConfig, brush: boolean) {
     return brush ? config.brush?.apex_config?.fill?.type || 'solid' : config.apex_config?.fill?.type || 'solid';
   } else {
     const series = brush ? config.series_in_brush : config.series_in_graph;
-    return series.map((serie) => {
+    return series.map((seriesItem) => {
       if (
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         !PLAIN_COLOR_TYPES.includes(config.chart_type!) &&
-        serie.type !== 'column' &&
-        serie.color_threshold &&
-        serie.color_threshold.length > 0
+        seriesItem.type !== 'column' &&
+        seriesItem.color_threshold &&
+        seriesItem.color_threshold.length > 0
       ) {
         return 'gradient';
       }

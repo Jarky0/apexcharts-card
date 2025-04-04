@@ -1,13 +1,16 @@
+/* eslint-disable no-undef */
 module.exports = {
   // preset: 'ts-jest/presets/default-esm', // Using custom transform instead
   testEnvironment: 'jsdom',
   testEnvironmentOptions: {
-    // Führe das Setup-Skript aus, bevor jsdom initialisiert wird
+    // Run the setup script before jsdom is initialized
     resources: 'usable',
     runScripts: 'dangerously',
     beforeParse(window) {
-      // Verwende einfache Funktionen statt jest.fn()
-      const mockFn = () => {};
+      // Use simple functions instead of jest.fn()
+      const mockFn = () => {
+        // Empty function for mock implementation
+      };
       window.matchMedia =
         window.matchMedia ||
         (() => ({
@@ -31,17 +34,17 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
-    // Vereinfachte Mapper für ESM-Pakete
+    // Simplified mappers for ESM packages
     '^@material/web/(.*)$': '<rootDir>/node_modules/@material/web/$1',
     '^lit$': '<rootDir>/node_modules/lit/index.js',
     '^lit/directives/(.*)$': '<rootDir>/node_modules/lit/directives/$1',
-    // Wir entfernen spezifischere lit-* Mapper, da Jest sie vielleicht selbst auflösen kann
+    // We remove more specific lit-* mappers as Jest might be able to resolve them itself
     // '^lit-element/(.*)$': '<rootDir>/node_modules/lit-element/$1',
     // '^lit-html/(.*)$': '<rootDir>/node_modules/lit-html/$1',
     // '^@lit/reactive-element/(.*)$': '<rootDir>/node_modules/@lit/reactive-element/$1',
   },
   transformIgnorePatterns: [
-    // Erlaube Transpilierung der notwendigen ESM-Pakete
+    // Allow transpilation of necessary ESM packages
     'node_modules/(?!(@lit|lit|@material/web)/)',
   ],
   extensionsToTreatAsEsm: ['.ts'],
