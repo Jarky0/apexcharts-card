@@ -1,5 +1,5 @@
 import { HomeAssistant } from 'custom-card-helpers';
-import parse from 'parse-duration';
+import _parse from 'parse-duration';
 import {
   DEFAULT_AREA_OPACITY,
   DEFAULT_FLOAT_PRECISION,
@@ -262,9 +262,9 @@ function getDateTimeFormatter(hours12: boolean | undefined): unknown {
 function getXTooltipFormatter(
   config: ChartCardConfig,
   hass: HomeAssistant | undefined,
-): ((val: number, _a: any, _b: any) => string) | undefined {
+): ((val: number, _a: unknown, _b: unknown) => string) | undefined {
   if (config.apex_config?.tooltip?.x?.format) return undefined;
-  let hours12: any = undefined;
+  let hours12: { hour12: boolean } | { hourCycle: 'h11' | 'h12' | 'h23' | 'h24' } | undefined = undefined;
   const lang = config.locale || hass?.language || 'en';
   hours12 = is12Hour(config, hass) ? { hour12: true } : { hourCycle: 'h23' };
 
@@ -274,8 +274,8 @@ function getXTooltipFormatter(
           hour: 'numeric',
           minute: 'numeric',
           second: 'numeric',
-          ...hours_12,
-        } as any).format(val);
+          ...(hours_12 || {}),
+        }).format(val);
       }
     : function (val, _a, _b, hours_12 = hours12) {
         return new Intl.DateTimeFormat(lang, {
@@ -285,9 +285,8 @@ function getXTooltipFormatter(
           hour: 'numeric',
           minute: 'numeric',
           second: 'numeric',
-          ...hours_12,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any).format(val);
+          ...(hours_12 || {}),
+        }).format(val);
       };
 }
 
