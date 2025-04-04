@@ -1,3 +1,7 @@
+## <small>2.4.1 (2025-04-04)</small>
+
+* fix: Add option to disable config validation ([16bf63f](https://github.com/Jarky0/apexcharts-card/commit/16bf63f))
+
 ## 2.4.0 (2025-04-04)
 
 * chore(deps): update dependencies to latest compatible versions ([4cd29c8](https://github.com/Jarky0/apexcharts-card/commit/4cd29c8))
