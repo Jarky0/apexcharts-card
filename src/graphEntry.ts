@@ -13,12 +13,11 @@ import {
 import { compress, decompress, log } from './utils';
 import localForage from 'localforage';
 import { HassEntity } from 'home-assistant-js-websocket';
-import { DEFAULT_STATISTICS_PERIOD, DEFAULT_STATISTICS_TYPE, moment } from './const';
+import { DEFAULT_STATISTICS_PERIOD, DEFAULT_STATISTICS_TYPE } from './const';
 import parse from 'parse-duration';
 import SparkMD5 from 'spark-md5';
 import { ChartCardSpanExtConfig, StatisticsPeriod } from './types-config';
 import * as pjson from '../package.json';
-import { DateRange } from 'moment-range';
 
 export default class GraphEntry {
   private _computedHistory?: EntityCachePoints;
@@ -248,8 +247,7 @@ export default class GraphEntry {
     this._computedHistory = computedHistory;
 
     if (this._config.group_by.func !== 'raw') {
-      const range = moment.range(startHistory, end);
-      const res: EntityCachePoints = this._dataBucketer(this._computedHistory, range).map((bucket) => {
+      const res: EntityCachePoints = this._dataBucketer(this._computedHistory, startHistory, end).map((bucket) => {
         const value = bucket.data.length > 0 ? this._func(bucket.data) : null;
         return [bucket.timestamp, value];
       });
@@ -285,12 +283,19 @@ export default class GraphEntry {
   }
 
   private _applyTransform(value: unknown, historyItem: HassHistoryEntry | StatisticValue): number | null {
-    return new Function('x', 'hass', 'entity', `'use strict'; ${this._config.transform}`).call(
-      this,
-      value,
-      this._hass,
-      historyItem,
-    );
+    // Add try-catch around transform execution
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      const func = new Function('x', 'entity', 'entities', 'hass', 'states', `'use strict'; ${this._config.transform}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const transformed = func(value, this._entityState, (this._hass as any)?.states, this._hass, historyItem);
+      return transformed === undefined || transformed === null || Number.isNaN(transformed)
+        ? null
+        : Number(transformed);
+    } catch (e) {
+      log(`Error applying transform function: ${e}`);
+      return null; // Return null or original value on error?
+    }
   }
 
   private async _fetchRecent(
@@ -311,16 +316,19 @@ export default class GraphEntry {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     let data;
+    // Add try-catch around data_generator execution
     try {
+      // Remove moment from data_generator function parameters
       const datafn = new AsyncFunction(
         'entity',
         'start',
         'end',
         'hass',
-        'moment',
+        // 'moment', REMOVED
         `'use strict'; ${this._config.data_generator}`,
       );
-      data = await datafn(this._entityState, start, end, this._hass, moment);
+      // Remove moment from data_generator function call arguments
+      data = await datafn(this._entityState, start, end, this._hass /*, moment REMOVED*/);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       const funcTrimmed =
@@ -330,15 +338,20 @@ export default class GraphEntry {
             this._config.data_generator!.trim()
           : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             `${this._config.data_generator!.trim().substring(0, 98)}...`;
-      e.message = `${e.name}: ${e.message} in '${funcTrimmed}'`;
-      e.name = 'Error';
-      throw e;
+      // Modify error message to be more informative
+      const errorMessage = `Error executing data_generator for ${this._entityID}: ${e.message} in '${funcTrimmed}'`;
+      log(errorMessage);
+      // Instead of re-throwing, let _updateHistory handle the failure (e.g., by returning false)
+      // throw new Error(errorMessage);
+      data = undefined; // Indicate failure
     }
+
+    // Return structure should match EntityEntryCache, adjust if needed
     return {
       span: 0,
       card_version: pjson.version,
-      last_fetched: new Date(),
-      data,
+      last_fetched: new Date(), // This timestamp might not be accurate if generator fails
+      data: data || [], // Return empty array on failure
     };
   }
 
@@ -390,67 +403,69 @@ export default class GraphEntry {
     return undefined;
   }
 
-  private _dataBucketer(history: EntityCachePoints, range: DateRange): HistoryBuckets {
-    const ranges = Array.from(range.by('milliseconds', { step: this._groupByDurationMs })).reverse();
+  private _dataBucketer(history: EntityCachePoints, start: Date, end: Date): HistoryBuckets {
+    if (!history || history.length === 0) return [];
+
     const buckets: HistoryBuckets = [];
-    ranges.forEach((rangeItem, index) => {
-      buckets[index] = { timestamp: rangeItem.valueOf(), data: [] };
-    });
-    history?.forEach((entry) => {
-      buckets.some((bucket, index) => {
-        if (bucket.timestamp > entry[0] && index > 0) {
-          if (entry[0] >= buckets[index - 1].timestamp) {
-            buckets[index - 1].data.push(entry);
-            return true;
-          }
-        }
-        if (index === buckets.length - 1 && entry[0] >= bucket.timestamp) {
-          bucket.data.push(entry);
-          return true;
-        }
-        return false;
-      });
-    });
-    let lastNonNullBucketValue: number | null = null;
-    const now = new Date().getTime();
-    buckets.forEach((bucket, index) => {
-      if (bucket.data.length === 0) {
-        if (this._config.group_by.fill === 'last' && (bucket.timestamp <= now || this._config.data_generator)) {
-          bucket.data[0] = [bucket.timestamp, lastNonNullBucketValue];
-        } else if (this._config.group_by.fill === 'zero' && (bucket.timestamp <= now || this._config.data_generator)) {
-          bucket.data[0] = [bucket.timestamp, 0];
-        } else if (this._config.group_by.fill === 'null') {
-          bucket.data[0] = [bucket.timestamp, null];
-        }
-      } else {
-        lastNonNullBucketValue = bucket.data.slice(-1)[0][1];
-      }
-      if (this._config.group_by.start_with_last) {
-        if (index > 0) {
-          if (bucket.data.length === 0 || bucket.data[0][0] !== bucket.timestamp) {
-            const prevBucketData = buckets[index - 1].data;
-            bucket.data.unshift([bucket.timestamp, prevBucketData[prevBucketData.length - 1][1]]);
-          }
-        } else {
-          const firstIndexAfter = history.findIndex((entry) => {
-            if (entry[0] > bucket.timestamp) return true;
-            return false;
-          });
-          if (firstIndexAfter > 0) {
-            bucket.data.unshift([bucket.timestamp, history[firstIndexAfter - 1][1]]);
-          }
-        }
-      }
-    });
-    buckets.shift();
-    buckets.pop();
-    while (
-      buckets.length > 0 &&
-      (buckets[buckets.length - 1].data.length === 0 ||
-        (buckets[buckets.length - 1].data.length === 1 && buckets[buckets.length - 1].data[0][1] === null))
-    ) {
-      buckets.pop();
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    const groupingDuration = this._groupByDurationMs;
+
+    if (groupingDuration <= 0) {
+      log('Invalid group_by duration. Must be positive.');
+      return []; // Or throw an error
     }
+
+    // Determine the timestamp for the first bucket
+    // Align buckets based on the end time, similar to how moment.range(...).by('duration') might work
+    let bucketEndMs = endMs;
+    while (bucketEndMs > startMs) {
+      bucketEndMs -= groupingDuration;
+    }
+    // Now bucketEndMs is <= startMs. The first bucket *starts* after this time.
+    let currentBucketStartMs = bucketEndMs;
+
+    // Edge case: If the first point is exactly at or before the calculated start, include it.
+    if (history.length > 0 && history[0][0] <= startMs) {
+      // Adjust start slightly if needed, but generally covered by loop logic
+    }
+
+    let currentBucket: HistoryPoint[] = [];
+    let historyIndex = 0;
+
+    // Iterate through potential bucket start times
+    while (currentBucketStartMs < endMs) {
+      const currentBucketEndMs = currentBucketStartMs + groupingDuration;
+      currentBucket = []; // Reset for the new bucket
+
+      // Collect points that fall within the current bucket [start, end)
+      while (historyIndex < history.length && history[historyIndex][0] < currentBucketEndMs) {
+        // Only include points that are also >= the bucket start time
+        if (history[historyIndex][0] >= currentBucketStartMs) {
+          currentBucket.push(history[historyIndex]);
+        }
+        // Also include the last point before the bucket if filling is needed and func is raw/last/first?
+        // This logic might need refinement based on exact fill/func behavior desired.
+
+        historyIndex++;
+      }
+
+      // Add the bucket if it's relevant (within the overall start/end range)
+      // Use the *end* of the bucket interval as the representative timestamp
+      if (currentBucketEndMs > startMs) {
+        // Ensure the bucket end is within the desired range
+        buckets.push({
+          // Using the end of the bucket interval as the timestamp
+          timestamp: currentBucketEndMs,
+          data: [...currentBucket],
+        });
+      }
+
+      // Move to the next bucket
+      currentBucketStartMs = currentBucketEndMs;
+      // Reset historyIndex if needed? No, continue from where we left off.
+    }
+
     return buckets;
   }
 

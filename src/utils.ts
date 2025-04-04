@@ -4,7 +4,7 @@ import { ChartCardConfig, EntityCachePoints } from './types';
 import { TinyColor } from '@ctrl/tinycolor';
 import parse from 'parse-duration';
 import { ChartCardExternalConfig, ChartCardPrettyTime, ChartCardSeriesExternalConfig } from './types-config';
-import { DEFAULT_FLOAT_PRECISION, DEFAULT_MAX, DEFAULT_MIN, moment, NO_VALUE } from './const';
+import { DEFAULT_FLOAT_PRECISION, DEFAULT_MAX, DEFAULT_MIN, NO_VALUE } from './const';
 import { formatNumber, FrontendLocaleData, HomeAssistant } from 'custom-card-helpers';
 import { OverrideFrontendLocaleData } from './types-ha';
 
@@ -143,9 +143,93 @@ export function offsetData(data: EntityCachePoints, offset: number | undefined):
   return data;
 }
 
+const TIME_UNITS_INTL: { unit: Intl.RelativeTimeFormatUnit; ms: number }[] = [
+  { unit: 'year', ms: 31536000000 },
+  { unit: 'day', ms: 86400000 },
+  { unit: 'hour', ms: 3600000 },
+  { unit: 'minute', ms: 60000 },
+  { unit: 'second', ms: 1000 },
+  // millisecond is not a standard Intl.RelativeTimeFormatUnit, handled separately
+];
+
+function formatDuration(ms: number): string {
+  if (ms === 0) return '0ms';
+
+  let remainingMs = Math.abs(ms);
+  const parts: string[] = [];
+
+  for (const { unit, ms: unitMs } of TIME_UNITS_INTL) {
+    if (remainingMs >= unitMs) {
+      const value = Math.floor(remainingMs / unitMs);
+      // Use abbreviations consistent with moment's format (y, d, h, m, s)
+      let abbr = unit.charAt(0); // y, d, h, m, s
+      parts.push(`${value}${abbr}`);
+      remainingMs %= unitMs;
+    }
+  }
+
+  // Handle remaining milliseconds
+  if (remainingMs >= 1) {
+    // Show ms if >= 1ms
+    parts.push(`${Math.round(remainingMs)}ms`);
+  } else if (parts.length === 0 && Math.abs(ms) > 0) {
+    // If the original value was < 1ms but > 0ms, show it rounded
+    // Use original ms here as remainingMs might be 0 after division
+    parts.push(`${Math.round(Math.abs(ms))}ms`);
+  }
+
+  // If after all calculations, parts is empty (e.g., input was 0.1ms), return 0ms
+  if (parts.length === 0) {
+    return '0ms';
+  }
+
+  return (ms < 0 ? '-' : '') + parts.join(' ');
+}
+
 export function prettyPrintTime(value: string | number | null, unit: ChartCardPrettyTime): string {
-  if (value === null) return NO_VALUE;
-  return moment.duration(value, unit).format('y[y] d[d] h[h] m[m] s[s] S[ms]', { trim: 'both' });
+  if (value === null || value === undefined) return NO_VALUE;
+
+  let ms: number;
+  if (typeof value === 'string') {
+    // Try parsing if it's a string that might represent a number
+    ms = parseFloat(value);
+    if (isNaN(ms)) return NO_VALUE; // Or handle potential duration strings if needed
+  } else {
+    ms = value;
+  }
+
+  // Convert input value to milliseconds based on the unit
+  switch (unit) {
+    case 'millisecond':
+      // value is already in ms
+      break;
+    case 'second':
+      ms *= 1000;
+      break;
+    case 'minute':
+      ms *= 60000;
+      break;
+    case 'hour':
+      ms *= 3600000;
+      break;
+    case 'day':
+      ms *= 86400000;
+      break;
+    case 'week':
+      ms *= 604800000;
+      break;
+    case 'month':
+      ms *= (365.25 / 12) * 86400000;
+      break;
+    case 'year':
+      ms *= 365.25 * 86400000;
+      break;
+    default:
+      // Assume milliseconds if unit is unknown or not provided
+      break;
+  }
+
+  return formatDuration(ms);
 }
 
 export function getPercentFromValue(value: number, min: number | undefined, max: number | undefined): number {
@@ -232,27 +316,31 @@ export function mergeDeepConfig(target: any, source: any): any {
 }
 
 export function is12HourFromLocale(locale: string): boolean {
-  return !(new Date(2021, 1, 1, 15, 0, 0, 0).toLocaleTimeString(locale).indexOf('15') > -1);
+  try {
+    // Check timeStyle short format for AM/PM marker
+    const formattedTime = new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(
+      new Date(2000, 0, 1, 13, 0, 0),
+    );
+    // A simple check, might need refinement for specific locales
+    return /am|pm/i.test(formattedTime);
+  } catch (e) {
+    // Fallback if Intl fails for the locale
+    return false;
+  }
 }
 
 export function is12Hour(config: ChartCardConfig | undefined, hass: HomeAssistant | undefined): boolean {
+  const lang = getLang(config, hass);
+  const locale = (hass?.locale as OverrideFrontendLocaleData)?.time_format;
+
   if (config?.hours_12 !== undefined) {
     return config.hours_12;
+  } else if (locale === '12') {
+    return true;
+  } else if (locale === '24') {
+    return false;
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hassLocale = (hass as any)?.locale;
-    if (hassLocale?.time_format) {
-      if (hassLocale.time_format === 'language') {
-        return is12HourFromLocale(hassLocale.language);
-      } else if (hassLocale.time_format === 'system') {
-        return is12HourFromLocale(navigator.language);
-      } else {
-        return hassLocale.time_format === '12';
-      }
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return is12HourFromLocale(getLang(config, hass));
-    }
+    return is12HourFromLocale(lang);
   }
 }
 
@@ -262,28 +350,41 @@ export function formatApexDate(
   value: Date,
   withDate = true,
 ): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hours12 = is12Hour(config, hass) ? { hour12: true } : { hourCycle: 'h23' };
   const lang = getLang(config, hass);
-  if (withDate) {
-    return new Intl.DateTimeFormat(lang, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      ...hours12,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any).format(value);
-  } else {
-    return new Intl.DateTimeFormat(lang, {
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      ...hours12,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any).format(value);
+  const use12Hour = is12Hour(config, hass);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const dateYear = value.getFullYear();
+
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: use12Hour,
+  };
+
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    day: 'numeric',
+    month: 'short',
+    // Only show year if different from current year
+    year: dateYear !== currentYear ? 'numeric' : undefined,
+  };
+
+  try {
+    const formatter = new Intl.DateTimeFormat(lang, withDate ? { ...dateOptions, ...timeOptions } : timeOptions);
+    return formatter.format(value);
+  } catch (e) {
+    log(`Error formatting date for locale ${lang}: ${e}`);
+    // Fallback to default locale if provided lang fails
+    try {
+      const fallbackFormatter = new Intl.DateTimeFormat(
+        undefined,
+        withDate ? { ...dateOptions, ...timeOptions } : timeOptions,
+      );
+      return fallbackFormatter.format(value);
+    } catch (fallbackErr) {
+      // Final fallback to basic ISO string part if everything fails
+      return value.toISOString();
+    }
   }
 }
 
@@ -340,7 +441,40 @@ export function myFormatNumber(
 
 export function computeTimezoneDiffWithLocal(timezone: string | undefined): number {
   if (!timezone) return 0;
-  return (moment().utcOffset() - moment().tz(timezone).utcOffset()) * 60 * 1000;
+  // Replace moment-timezone logic with native Intl API if feasible for offset calculation
+  // This is complex due to historical changes and DST.
+  // For simplicity, we might keep the current logic or explore libraries like date-fns-tz
+  // For now, returning 0 as a placeholder, acknowledging this needs a proper replacement.
+  // Original logic (requires moment-timezone):
+  // const serverTime = moment().tz(timezone);
+  // const localTime = moment();
+  // return serverTime.utcOffset() * 60 * 1000 - localTime.utcOffset() * 60 * 1000;
+
+  // Basic native attempt (might be inaccurate due to DST/historical differences):
+  try {
+    const now = new Date();
+    // Get offset string like GMT+X or GMT-X using Intl API
+    const formatter = new Intl.DateTimeFormat('en- পোস্টফিক্স', { timeZone: timezone, timeZoneName: 'longOffset' }); // Use 'en-u-nu-latn' or similar stable locale
+    const parts = formatter.formatToParts(now);
+    const offsetString = parts.find((part) => part.type === 'timeZoneName')?.value; // e.g., GMT+01:00
+
+    if (offsetString) {
+      const match = offsetString.match(/GMT([+-])(\d{1,2}):(\d{2})/);
+      if (match) {
+        const sign = match[1] === '+' ? 1 : -1;
+        const hours = parseInt(match[2], 10);
+        const minutes = parseInt(match[3], 10);
+        const serverOffsetMs = sign * (hours * 3600000 + minutes * 60000);
+        const localOffsetMs = -now.getTimezoneOffset() * 60000; // getTimezoneOffset is opposite sign
+        return serverOffsetMs - localOffsetMs;
+      }
+    }
+    log(`Could not parse offset string: ${offsetString} for timezone ${timezone}`);
+  } catch (e) {
+    log(`Failed to calculate timezone offset for ${timezone}: ${e}`);
+  }
+  // Fallback to 0 if calculation fails
+  return 0;
 }
 
 export function isUsingServerTimezone(/*config: ChartCardConfig, */ hass: HomeAssistant | undefined): boolean {

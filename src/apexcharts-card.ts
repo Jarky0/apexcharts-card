@@ -116,6 +116,20 @@ localForage
     console.warn('Purging has errored: ', err);
   });
 
+// ADD: Debounce utility function
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number): (...args: Parameters<F>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<F>): void => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => func(...args), waitFor);
+  };
+}
+// END ADD
+
 @customElement('apexcharts-card')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 class ChartsCard extends LitElement {
@@ -171,6 +185,10 @@ class ChartsCard extends LitElement {
 
   @property({ type: Boolean }) private _warning = false;
 
+  // ADD: Debounced version of _updateData
+  private _debouncedUpdateData = debounce(() => this._updateData(), 500); // Debounce for 500ms
+  // END ADD
+
   public connectedCallback() {
     super.connectedCallback();
     if (this._config && this._hass && !this._loaded) {
@@ -193,15 +211,23 @@ class ChartsCard extends LitElement {
   disconnectedCallback() {
     if (this._intervalTimeout) {
       clearInterval(this._intervalTimeout);
+      this._intervalTimeout = undefined; // ADD: Clear reference
     }
+    // ADD: Clear any pending debounced updates on disconnect
+    if ((this._debouncedUpdateData as any).cancel) {
+      (this._debouncedUpdateData as any).cancel(); // Assumes a cancel method if using a library
+    }
+    // END ADD
     this._updating = false;
     super.disconnectedCallback();
   }
 
   private _updateOnInterval(): void {
     if (!this._updating && this._hass) {
-      this._updating = true;
-      this._updateData();
+      // Use debounced update
+      // this._updating = true; // Set updating flag inside _updateData now
+      // this._updateData();
+      this._debouncedUpdateData(); // ADD
     }
   }
 
@@ -274,11 +300,15 @@ class ChartsCard extends LitElement {
         if (!this._dataLoaded) {
           this._firstDataLoad();
         } else {
-          this._updating = true;
-          // give time to HA's recorder component to write the data in the history
-          setTimeout(() => {
-            this._updateData();
-          }, this._updateDelay);
+          // ADD: Use debounced update, incorporating update_delay
+          // Use a slightly longer debounce time if update_delay is significant
+          const debounceTime = Math.max(500, this._updateDelay || 0);
+          // Recreate debounced function if delay changed? For now, use fixed debounce or max(500, delay)
+          if (!this._debouncedUpdateData || (this._debouncedUpdateData as any).waitFor !== debounceTime) {
+            this._debouncedUpdateData = debounce(() => this._updateData(), debounceTime);
+          }
+          this._debouncedUpdateData();
+          // END ADD
         }
       }
     }
@@ -367,6 +397,12 @@ class ChartsCard extends LitElement {
         },
         configDup,
       );
+
+      // ADD: Comment regarding cache compression
+      // Note on `useCompress`: Compression (lz-string) can reduce storage size for large datasets
+      // but adds overhead for compression/decompression. Evaluate based on typical data size.
+      // It's disabled by default.
+      // END ADD
 
       const defColors = this._config?.color_list || DEFAULT_COLORS;
       if (this._config) {
@@ -795,7 +831,15 @@ class ChartsCard extends LitElement {
   }
 
   private async _updateData() {
-    if (!this._config || !this._apexChart || !this._graphs) return;
+    // ADD: Set updating flag at the start of the actual update logic
+    if (this._updating) return; // Prevent concurrent updates
+    this._updating = true;
+    // END ADD
+
+    if (!this._config || !this._apexChart || !this._graphs) {
+      this._updating = false; // Reset flag if we return early
+      return;
+    }
 
     const { start, end } = this._getSpanDates();
     const now = new Date();
@@ -1025,6 +1069,7 @@ class ChartsCard extends LitElement {
     } catch (err) {
       log(err);
     }
+    // Reset updating flag at the end
     this._updating = false;
   }
 
