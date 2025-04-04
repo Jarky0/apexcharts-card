@@ -75,7 +75,7 @@ import {
   DEFAULT_FUNC,
   DEFAULT_GROUP_BY_FILL,
   DEFAULT_GRAPH_SPAN,
-  DEFAULT_SERIE_TYPE,
+  DEFAULT_SERIES_TYPE,
   HOUR_24,
 } from './const';
 import parse from 'parse-duration';
@@ -94,7 +94,7 @@ console.info(
 (globalThis as any).ApexCharts = ApexCharts;
 
 localForage.config({
-  name: 'apexchart-card',
+  name: 'apexcharts-card',
   version: 1.0,
   storeName: 'entity_history_cache',
   description: 'ApexCharts-card uses caching for the entity history',
@@ -218,9 +218,9 @@ class ChartsCard extends LitElement {
     this._updating = true;
     this._updateData().then(() => {
       if (this._config?.experimental?.hidden_by_default) {
-        this._config.series_in_graph.forEach((serie, index) => {
-          if (serie.show.hidden_by_default) {
-            const name = computeName(index, this._config?.series_in_graph, this._entities);
+        this._config.series_in_graph.forEach((seriesItem, _index) => {
+          if (seriesItem.show.hidden_by_default) {
+            const name = computeName(_index, this._config?.series_in_graph, this._entities);
             this._apexChart?.hideSeries(name);
           }
         });
@@ -238,21 +238,21 @@ class ChartsCard extends LitElement {
 
     let updated = false;
     let rawHeaderStatesUpdated = false;
-    this._config.series.forEach((serie, index) => {
-      const entityState = (hass && hass.states[serie.entity]) || undefined;
+    this._config.series.forEach((seriesItem, _index) => {
+      const entityState = (hass && hass.states[seriesItem.entity]) || undefined;
       if (!entityState) {
-        this._entities[index] = entityState;
-      } else if (entityState && this._entities[index] !== entityState) {
-        this._entities[index] = entityState;
+        this._entities[_index] = entityState;
+      } else if (entityState && this._entities[_index] !== entityState) {
+        this._entities[_index] = entityState;
         updated = true;
-        if (this._graphs && this._graphs[index]) {
+        if (this._graphs && this._graphs[_index]) {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this._graphs[index]!.hass = this._hass!;
+          this._graphs[_index]!.hass = this._hass!;
         }
-        if (serie.show.in_header === 'raw') {
-          this._headerState[index] = truncateFloat(
-            serie.attribute ? entityState.attributes[serie.attribute] : entityState.state,
-            serie.float_precision,
+        if (seriesItem.show.in_header === 'raw') {
+          this._headerState[_index] = truncateFloat(
+            seriesItem.attribute ? entityState.attributes[seriesItem.attribute] : entityState.state,
+            seriesItem.float_precision,
           ) as number;
           rawHeaderStatesUpdated = true;
         }
@@ -326,9 +326,9 @@ class ChartsCard extends LitElement {
         ChartCardExternalConfig.strictCheck(configDup);
       }
       if (configDup.all_series_config) {
-        configDup.series.forEach((serie, index) => {
+        configDup.series.forEach((seriesItem, _index) => {
           const allDup = JSON.parse(JSON.stringify(configDup.all_series_config));
-          configDup.series[index] = mergeDeepConfig(allDup, serie);
+          configDup.series[_index] = mergeDeepConfig(allDup, seriesItem);
         });
       }
       if (configDup.update_interval) {
@@ -346,12 +346,12 @@ class ChartsCard extends LitElement {
       if (configDup.brush?.selection_span) {
         this._brushSelectionSpan = validateInterval(configDup.brush.selection_span, 'brush.selection_span');
       }
-      configDup.series.forEach((serie, index) => {
-        if (serie.offset) {
-          this._seriesOffset[index] = validateOffset(serie.offset, `series[${index}].offset`);
+      configDup.series.forEach((seriesItem, _index) => {
+        if (seriesItem.offset) {
+          this._seriesOffset[_index] = validateOffset(seriesItem.offset, `series[${_index}].offset`);
         }
-        if (serie.time_delta) {
-          this._seriesTimeDelta[index] = validateOffset(serie.time_delta, `series[${index}].time_delta`);
+        if (seriesItem.time_delta) {
+          this._seriesTimeDelta[_index] = validateOffset(seriesItem.time_delta, `series[${_index}].time_delta`);
         }
       });
       if (configDup.update_delay) {
@@ -370,34 +370,34 @@ class ChartsCard extends LitElement {
 
       const defColors = this._config?.color_list || DEFAULT_COLORS;
       if (this._config) {
-        this._graphs = this._config.series.map((serie, index) => {
-          serie.index = index;
-          serie.ignore_history = !!(
+        this._graphs = this._config.series.map((seriesItem, _index) => {
+          seriesItem.index = _index;
+          seriesItem.ignore_history = !!(
             this._config?.chart_type &&
             ['donut', 'pie', 'radialBar'].includes(this._config?.chart_type) &&
-            (!serie.group_by || serie.group_by?.func === 'raw') &&
-            !serie.data_generator &&
-            !serie.statistics &&
-            !serie.offset
+            (!seriesItem.group_by || seriesItem.group_by?.func === 'raw') &&
+            !seriesItem.data_generator &&
+            !seriesItem.statistics &&
+            !seriesItem.offset
           );
-          if (!this._headerColors[index]) {
-            this._headerColors[index] = defColors[index % defColors.length];
+          if (!this._headerColors[_index]) {
+            this._headerColors[_index] = defColors[_index % defColors.length];
           }
-          if (serie.color) {
-            this._headerColors[index] = serie.color;
+          if (seriesItem.color) {
+            this._headerColors[_index] = seriesItem.color;
           }
-          serie.fill_raw = serie.fill_raw || DEFAULT_FILL_RAW;
-          serie.extend_to = serie.extend_to !== undefined ? serie.extend_to : 'end';
-          serie.type = this._config?.chart_type ? undefined : serie.type || DEFAULT_SERIE_TYPE;
-          if (!serie.group_by) {
-            serie.group_by = { duration: DEFAULT_DURATION, func: DEFAULT_FUNC, fill: DEFAULT_GROUP_BY_FILL };
+          seriesItem.fill_raw = seriesItem.fill_raw || DEFAULT_FILL_RAW;
+          seriesItem.extend_to = seriesItem.extend_to !== undefined ? seriesItem.extend_to : 'end';
+          seriesItem.type = this._config?.chart_type ? undefined : seriesItem.type || DEFAULT_SERIES_TYPE;
+          if (!seriesItem.group_by) {
+            seriesItem.group_by = { duration: DEFAULT_DURATION, func: DEFAULT_FUNC, fill: DEFAULT_GROUP_BY_FILL };
           } else {
-            serie.group_by.duration = serie.group_by.duration || DEFAULT_DURATION;
-            serie.group_by.func = serie.group_by.func || DEFAULT_FUNC;
-            serie.group_by.fill = serie.group_by.fill || DEFAULT_GROUP_BY_FILL;
+            seriesItem.group_by.duration = seriesItem.group_by.duration || DEFAULT_DURATION;
+            seriesItem.group_by.func = seriesItem.group_by.func || DEFAULT_FUNC;
+            seriesItem.group_by.fill = seriesItem.group_by.fill || DEFAULT_GROUP_BY_FILL;
           }
-          if (!serie.show) {
-            serie.show = {
+          if (!seriesItem.show) {
+            seriesItem.show = {
               in_legend: DEFAULT_SHOW_IN_LEGEND,
               legend_value: DEFAULT_SHOW_LEGEND_VALUE,
               in_header: DEFAULT_SHOW_IN_HEADER,
@@ -406,40 +406,46 @@ class ChartsCard extends LitElement {
               offset_in_name: DEFAULT_SHOW_OFFSET_IN_NAME,
             };
           } else {
-            serie.show.in_legend = serie.show.in_legend === undefined ? DEFAULT_SHOW_IN_LEGEND : serie.show.in_legend;
-            serie.show.legend_value =
-              serie.show.legend_value === undefined ? DEFAULT_SHOW_LEGEND_VALUE : serie.show.legend_value;
-            serie.show.in_chart = serie.show.in_chart === undefined ? DEFAULT_SHOW_IN_CHART : serie.show.in_chart;
-            serie.show.in_header =
-              serie.show.in_header === undefined
-                ? !serie.show.in_chart && serie.show.in_brush
+            seriesItem.show.in_legend =
+              seriesItem.show.in_legend === undefined ? DEFAULT_SHOW_IN_LEGEND : seriesItem.show.in_legend;
+            seriesItem.show.legend_value =
+              seriesItem.show.legend_value === undefined ? DEFAULT_SHOW_LEGEND_VALUE : seriesItem.show.legend_value;
+            seriesItem.show.in_chart =
+              seriesItem.show.in_chart === undefined ? DEFAULT_SHOW_IN_CHART : seriesItem.show.in_chart;
+            seriesItem.show.in_header =
+              seriesItem.show.in_header === undefined
+                ? !seriesItem.show.in_chart && seriesItem.show.in_brush
                   ? false
                   : DEFAULT_SHOW_IN_HEADER
-                : serie.show.in_header;
-            serie.show.name_in_header =
-              serie.show.name_in_header === undefined ? DEFAULT_SHOW_NAME_IN_HEADER : serie.show.name_in_header;
-            serie.show.offset_in_name =
-              serie.show.offset_in_name === undefined ? DEFAULT_SHOW_OFFSET_IN_NAME : serie.show.offset_in_name;
+                : seriesItem.show.in_header;
+            seriesItem.show.name_in_header =
+              seriesItem.show.name_in_header === undefined
+                ? DEFAULT_SHOW_NAME_IN_HEADER
+                : seriesItem.show.name_in_header;
+            seriesItem.show.offset_in_name =
+              seriesItem.show.offset_in_name === undefined
+                ? DEFAULT_SHOW_OFFSET_IN_NAME
+                : seriesItem.show.offset_in_name;
           }
-          validateInterval(serie.group_by.duration, `series[${index}].group_by.duration`);
-          if (serie.color_threshold && serie.color_threshold.length > 0) {
-            const sorted: ChartCardColorThreshold[] = JSON.parse(JSON.stringify(serie.color_threshold));
+          validateInterval(seriesItem.group_by.duration, `series[${_index}].group_by.duration`);
+          if (seriesItem.color_threshold && seriesItem.color_threshold.length > 0) {
+            const sorted: ChartCardColorThreshold[] = JSON.parse(JSON.stringify(seriesItem.color_threshold));
             sorted.sort((a, b) => (a.value < b.value ? -1 : 1));
-            serie.color_threshold = sorted;
+            seriesItem.color_threshold = sorted;
           }
 
-          if (serie.entity) {
+          if (seriesItem.entity) {
             const editMode = getLovelace()?.editMode;
             // disable caching for editor
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             const caching = editMode === true ? false : this._config!.cache;
             const graphEntry = new GraphEntry(
-              index,
+              _index,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               this._graphSpan!,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               caching,
-              serie,
+              seriesItem,
               this._config?.span,
             );
             if (this._hass) graphEntry.hass = this._hass;
@@ -449,22 +455,22 @@ class ChartsCard extends LitElement {
         });
         this._config.series_in_graph = [];
         this._config.series_in_brush = [];
-        this._config.series.forEach((serie, index) => {
-          if (serie.show.in_chart) {
-            this._colors.push(this._headerColors[index]);
+        this._config.series.forEach((seriesItem, _index) => {
+          if (seriesItem.show.in_chart) {
+            this._colors.push(this._headerColors[_index]);
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this._config!.series_in_graph.push(serie);
+            this._config!.series_in_graph.push(seriesItem);
           }
-          if (this._config?.experimental?.brush && serie.show.in_brush) {
-            this._brushColors.push(this._headerColors[index]);
+          if (this._config?.experimental?.brush && seriesItem.show.in_brush) {
+            this._brushColors.push(this._headerColors[_index]);
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this._config!.series_in_brush.push(serie);
+            this._config!.series_in_brush.push(seriesItem);
           }
         });
         if (this._config.yaxis && this._config.yaxis.length > 1) {
           if (
-            this._config.series_in_graph.some((serie) => {
-              return !serie.yaxis_id;
+            this._config.series_in_graph.some((seriesItem) => {
+              return !seriesItem.yaxis_id;
             })
           ) {
             throw new Error(`Multiple yaxis detected: Some series are missing the 'yaxis_id' configuration.`);
@@ -486,9 +492,9 @@ class ChartsCard extends LitElement {
               yaxis: yAxisConfig,
             };
           }
-          this._yAxisConfig?.forEach((yaxis) => {
-            [yaxis.min, yaxis.min_type] = this._getTypeOfMinMax(yaxis.min);
-            [yaxis.max, yaxis.max_type] = this._getTypeOfMinMax(yaxis.max);
+          this._yAxisConfig?.forEach((_yaxis) => {
+            [_yaxis.min, _yaxis.min_type] = this._getTypeOfMinMax(_yaxis.min);
+            [_yaxis.max, _yaxis.max_type] = this._getTypeOfMinMax(_yaxis.max);
           });
         }
         this._headerColors = this._headerColors.slice(0, this._config?.series.length);
@@ -506,18 +512,18 @@ class ChartsCard extends LitElement {
     if (!config.yaxis) return undefined;
     const burned: boolean[] = [];
     this._yAxisConfig = JSON.parse(JSON.stringify(config.yaxis));
-    const yaxisConfig: ApexYAxis[] = config.series_in_graph.map((serie, serieIndex) => {
+    const yaxisConfig: ApexYAxis[] = config.series_in_graph.map((seriesItem, seriesIndex) => {
       let idx = -1;
       if (config.yaxis?.length !== 1) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         idx = config.yaxis!.findIndex((yaxis) => {
-          return yaxis.id === serie.yaxis_id;
+          return yaxis.id === seriesItem.yaxis_id;
         });
       } else {
         idx = 0;
       }
       if (idx < 0) {
-        throw new Error(`yaxis_id: ${serie.yaxis_id} doesn't exist.`);
+        throw new Error(`yaxis_id: ${seriesItem.yaxis_id} doesn't exist.`);
       }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-explicit-any
       let yAxisDup: any = JSON.parse(JSON.stringify(config.yaxis![idx]));
@@ -527,10 +533,10 @@ class ChartsCard extends LitElement {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         config.yaxis![idx].decimals === undefined ? DEFAULT_FLOAT_PRECISION : config.yaxis![idx].decimals;
       if (this._yAxisConfig?.[idx].series_id) {
-        this._yAxisConfig?.[idx].series_id?.push(serieIndex);
+        this._yAxisConfig?.[idx].series_id?.push(seriesIndex);
       } else {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        this._yAxisConfig![idx].series_id! = [serieIndex];
+        this._yAxisConfig![idx].series_id! = [seriesIndex];
       }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (config.yaxis![idx].apex_config) {
@@ -638,7 +644,7 @@ class ChartsCard extends LitElement {
     return html`<div
       id="header__title"
       class="${classes}"
-      @action=${(ev) => {
+      @action=${(ev: any) => {
         this._handleTitleAction(ev);
       }}
       .actionHandler=${actionHandler({
@@ -649,26 +655,26 @@ class ChartsCard extends LitElement {
           this._config?.header?.title_actions?.hold_action?.action &&
           this._config?.header?.title_actions?.hold_action.action !== 'none',
       })}
-      @focus="${(ev) => {
+      @focus="${() => {
         this.handleRippleFocus();
       }}"
-      @blur="${(ev) => {
+      @blur="${() => {
         this.handleRippleBlur();
       }}"
-      @mousedown="${(ev) => {
+      @mousedown="${() => {
         this.handleRippleActivate();
       }}"
-      @mouseup="${(ev) => {
+      @mouseup="${() => {
         this.handleRippleDeactivate();
       }}"
-      @touchstart="${(ev) => {
-        this.handleRippleActivate(ev, 'title');
+      @touchstart="${() => {
+        this.handleRippleActivate();
       }}"
-      @touchend="${(ev) => {
-        this.handleRippleDeactivate(ev, 'title');
+      @touchend="${() => {
+        this.handleRippleDeactivate();
       }}"
-      @touchcancel="${(ev) => {
-        this.handleRippleDeactivate(ev, 'title');
+      @touchcancel="${() => {
+        this.handleRippleDeactivate();
       }}"
     >
       <span>${this._config?.header?.title}</span>
@@ -679,64 +685,65 @@ class ChartsCard extends LitElement {
   private _renderStates(): TemplateResult {
     return html`
       <div id="header__states">
-        ${this._config?.series.map((serie, index) => {
-          if (serie.show.in_header) {
+        ${this._config?.series.map((seriesItem, index) => {
+          if (seriesItem.show.in_header) {
             return html`
               <div
                 id="states__state"
                 class="${this._config?.header?.disable_actions ||
-                (serie.header_actions?.tap_action?.action === 'none' &&
-                  (!serie.header_actions?.hold_action?.action ||
-                    serie.header_actions?.hold_action?.action === 'none') &&
-                  (!serie.header_actions?.double_tap_action?.action ||
-                    serie.header_actions?.double_tap_action?.action === 'none'))
+                (seriesItem.header_actions?.tap_action?.action === 'none' &&
+                  (!seriesItem.header_actions?.hold_action?.action ||
+                    seriesItem.header_actions?.hold_action?.action === 'none') &&
+                  (!seriesItem.header_actions?.double_tap_action?.action ||
+                    seriesItem.header_actions?.double_tap_action?.action === 'none'))
                   ? 'disabled'
                   : 'actions'}"
-                @action=${(ev) => {
-                  this._handleAction(ev, serie);
+                @action=${(ev: any) => {
+                  this._handleAction(ev, seriesItem);
                 }}
                 .actionHandler=${actionHandler({
                   hasDoubleClick:
-                    serie.header_actions?.double_tap_action?.action &&
-                    serie.header_actions.double_tap_action.action !== 'none',
+                    seriesItem.header_actions?.double_tap_action?.action &&
+                    seriesItem.header_actions.double_tap_action.action !== 'none',
                   hasHold:
-                    serie.header_actions?.hold_action?.action && serie.header_actions?.hold_action.action !== 'none',
+                    seriesItem.header_actions?.hold_action?.action &&
+                    seriesItem.header_actions?.hold_action.action !== 'none',
                 })}
-                @focus="${(ev) => {
-                  this.handleRippleFocus(ev, index);
+                @focus="${() => {
+                  this.handleRippleFocus();
                 }}"
-                @blur="${(ev) => {
-                  this.handleRippleBlur(ev, index);
+                @blur="${() => {
+                  this.handleRippleBlur();
                 }}"
-                @mousedown="${(ev) => {
-                  this.handleRippleActivate(ev, index);
+                @mousedown="${() => {
+                  this.handleRippleActivate();
                 }}"
-                @mouseup="${(ev) => {
-                  this.handleRippleDeactivate(ev, index);
+                @mouseup="${() => {
+                  this.handleRippleDeactivate();
                 }}"
-                @touchstart="${(ev) => {
-                  this.handleRippleActivate(ev, index);
+                @touchstart="${() => {
+                  this.handleRippleActivate();
                 }}"
-                @touchend="${(ev) => {
-                  this.handleRippleDeactivate(ev, index);
+                @touchend="${() => {
+                  this.handleRippleDeactivate();
                 }}"
-                @touchcancel="${(ev) => {
-                  this.handleRippleDeactivate(ev, index);
+                @touchcancel="${() => {
+                  this.handleRippleDeactivate();
                 }}"
               >
                 <div id="state__value">
-                  <span id="state" style="${this._computeHeaderStateColor(serie, this._headerState?.[index])}"
+                  <span id="state" style="${this._computeHeaderStateColor(seriesItem, this._headerState?.[index])}"
                     >${this._headerState?.[index] === 0
                       ? 0
-                      : serie.show.as_duration
-                        ? prettyPrintTime(this._headerState?.[index], serie.show.as_duration)
+                      : seriesItem.show.as_duration
+                        ? prettyPrintTime(this._headerState?.[index], seriesItem.show.as_duration)
                         : this._computeLastState(this._headerState?.[index], index) || NO_VALUE}</span
                   >
-                  ${!serie.show.as_duration
+                  ${!seriesItem.show.as_duration
                     ? html`<span id="uom">${computeUom(index, this._config?.series, this._entities)}</span>`
                     : ''}
                 </div>
-                ${serie.show.name_in_header
+                ${seriesItem.show.name_in_header
                   ? html`<div id="state__name">${computeName(index, this._config?.series, this._entities)}</div>`
                   : ''}
                 <mwc-ripple unbounded id="ripple-${index}"></mwc-ripple>
@@ -907,11 +914,14 @@ class ChartsCard extends LitElement {
       if (this._apexBrush) {
         brushData.colors = this._computeChartColors(true);
       }
-      if (this._config.experimental?.color_threshold && this._config.series.some((serie) => serie.color_threshold)) {
+      if (
+        this._config.experimental?.color_threshold &&
+        this._config.series.some((seriesItem) => seriesItem.color_threshold)
+      ) {
         graphData.markers = {
           colors: computeColors(
-            this._config.series_in_graph.flatMap((serie, index) => {
-              if (serie.type === 'column') return [];
+            this._config.series_in_graph.flatMap((seriesItem, index) => {
+              if (seriesItem.type === 'column') return [];
               return [this._colors[index]];
             }),
           ),
@@ -922,13 +932,19 @@ class ChartsCard extends LitElement {
         graphData.fill = {
           gradient: {
             type: 'vertical',
-            colorStops: this._config.series_in_graph.map((serie, index) => {
-              if (!serie.color_threshold || ![undefined, 'area', 'line'].includes(serie.type)) return [];
-              const min = this._graphs?.[serie.index]?.min;
-              const max = this._graphs?.[serie.index]?.max;
+            colorStops: this._config.series_in_graph.map((seriesItem, index) => {
+              if (!seriesItem.color_threshold || ![undefined, 'area', 'line'].includes(seriesItem.type)) return [];
+              const min = this._graphs?.[seriesItem.index]?.min;
+              const max = this._graphs?.[seriesItem.index]?.max;
               if (min === undefined || max === undefined) return [];
               return (
-                this._computeFillColorStops(serie, min, max, computeColor(this._colors[index]), serie.invert) || []
+                this._computeFillColorStops(
+                  seriesItem,
+                  min,
+                  max,
+                  computeColor(this._colors[index]),
+                  seriesItem.invert,
+                ) || []
               );
             }),
           },
@@ -937,13 +953,19 @@ class ChartsCard extends LitElement {
           brushData.fill = {
             gradient: {
               type: 'vertical',
-              colorStops: this._config.series_in_brush.map((serie, index) => {
-                if (!serie.color_threshold || ![undefined, 'area', 'line'].includes(serie.type)) return [];
-                const min = this._graphs?.[serie.index]?.min;
-                const max = this._graphs?.[serie.index]?.max;
+              colorStops: this._config.series_in_brush.map((seriesItem, index) => {
+                if (!seriesItem.color_threshold || ![undefined, 'area', 'line'].includes(seriesItem.type)) return [];
+                const min = this._graphs?.[seriesItem.index]?.min;
+                const max = this._graphs?.[seriesItem.index]?.max;
                 if (min === undefined || max === undefined) return [];
                 return (
-                  this._computeFillColorStops(serie, min, max, computeColor(this._colors[index]), serie.invert) || []
+                  this._computeFillColorStops(
+                    seriesItem,
+                    min,
+                    max,
+                    computeColor(this._colors[index]),
+                    seriesItem.invert,
+                  ) || []
                 );
               }),
             },
@@ -1019,16 +1041,16 @@ class ChartsCard extends LitElement {
       start.getMonth() === end.getMonth() &&
       start.getDate() === end.getDate();
     return {
-      points: this._config?.series_in_graph.flatMap((serie, index) => {
-        if (serie.show.extremas) {
-          const { min, max } = this._graphs?.[serie.index]?.minMaxWithTimestamp(
-            this._seriesOffset[serie.index]
-              ? new Date(start.getTime() + this._seriesOffset[serie.index]).getTime()
+      points: this._config?.series_in_graph.flatMap((seriesItem, index) => {
+        if (seriesItem.show.extremas) {
+          const { min, max } = this._graphs?.[seriesItem.index]?.minMaxWithTimestamp(
+            this._seriesOffset[seriesItem.index]
+              ? new Date(start.getTime() + this._seriesOffset[seriesItem.index]).getTime()
               : start.getTime(),
-            this._seriesOffset[serie.index]
-              ? new Date(end.getTime() + this._seriesOffset[serie.index]).getTime()
+            this._seriesOffset[seriesItem.index]
+              ? new Date(end.getTime() + this._seriesOffset[seriesItem.index]).getTime()
               : end.getTime(),
-            this._serverTimeOffset - (this._seriesTimeDelta[serie.index] || 0),
+            this._serverTimeOffset - (this._seriesTimeDelta[seriesItem.index] || 0),
           ) || {
             min: [0, null],
             max: [0, null],
@@ -1037,33 +1059,33 @@ class ChartsCard extends LitElement {
           const txtColor = computeTextColor(bgColor);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const extremas: any = [];
-          if (min[0] && ['min', 'min+time', true, 'time'].includes(serie.show.extremas)) {
-            const withTime = serie.show.extremas === 'time' || serie.show.extremas === 'min+time';
+          if (min[0] && ['min', 'min+time', true, 'time'].includes(seriesItem.show.extremas)) {
+            const withTime = seriesItem.show.extremas === 'time' || seriesItem.show.extremas === 'min+time';
             extremas.push(
               ...this._getPointAnnotationStyle(
                 min,
-                this._seriesOffset[serie.index],
+                this._seriesOffset[seriesItem.index],
                 bgColor,
                 txtColor,
-                serie,
+                seriesItem,
                 index,
-                serie.invert,
+                seriesItem.invert,
                 sameDay,
                 withTime,
               ),
             );
           }
-          if (max[0] && ['max', 'max+time', true, 'time'].includes(serie.show.extremas)) {
-            const withTime = serie.show.extremas === 'time' || serie.show.extremas === 'max+time';
+          if (max[0] && ['max', 'max+time', true, 'time'].includes(seriesItem.show.extremas)) {
+            const withTime = seriesItem.show.extremas === 'time' || seriesItem.show.extremas === 'max+time';
             extremas.push(
               ...this._getPointAnnotationStyle(
                 max,
-                this._seriesOffset[serie.index],
+                this._seriesOffset[seriesItem.index],
                 bgColor,
                 txtColor,
-                serie,
+                seriesItem,
                 index,
-                serie.invert,
+                seriesItem.invert,
                 sameDay,
                 withTime,
               ),
@@ -1082,7 +1104,7 @@ class ChartsCard extends LitElement {
     offset: number,
     bgColor: string,
     txtColor: string,
-    serie: ChartCardSeriesConfig,
+    seriesItem: ChartCardSeriesConfig,
     index: number,
     invert = false,
     sameDay: boolean,
@@ -1104,7 +1126,7 @@ class ChartsCard extends LitElement {
         fillColor: 'var(--card-background-color)',
       },
       label: {
-        text: myFormatNumber(value[1], this._hass?.locale, serie.float_precision),
+        text: myFormatNumber(value[1], this._hass?.locale, seriesItem.float_precision),
         borderColor: 'var(--card-background-color)',
         borderWidth: 2,
         style: {
@@ -1177,9 +1199,9 @@ class ChartsCard extends LitElement {
 
   private _computeYAxisAutoMinMax(start: Date, end: Date) {
     if (!this._config) return;
-    this._yAxisConfig?.map((yaxis) => {
-      if (yaxis.min_type !== minmax_type.FIXED || yaxis.max_type !== minmax_type.FIXED) {
-        const minMax = yaxis.series_id?.map((id) => {
+    this._yAxisConfig?.map((_yaxis) => {
+      if (_yaxis.min_type !== minmax_type.FIXED || _yaxis.max_type !== minmax_type.FIXED) {
+        const minMax = _yaxis.series_id?.map((id) => {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           const lMinMax = this._graphs![id]?.minMaxWithTimestampForYAxis(
             this._seriesOffset[id] ? new Date(start.getTime() + this._seriesOffset[id]).getTime() : start.getTime(),
@@ -1200,50 +1222,53 @@ class ChartsCard extends LitElement {
         });
         let min: number | null = null;
         let max: number | null = null;
-        minMax?.forEach((elt) => {
-          if (!elt) return;
+        minMax?.forEach((_elt) => {
+          if (!_elt) return;
           if (min === undefined || min === null) {
-            min = elt.min[1];
-          } else if (elt.min[1] !== null && min > elt.min[1]) {
-            min = elt.min[1];
+            min = _elt.min[1];
+          } else if (_elt.min[1] !== null && min > _elt.min[1]) {
+            min = _elt.min[1];
           }
           if (max === undefined || max === null) {
-            max = elt.max[1];
-          } else if (elt.max[1] !== null && max < elt.max[1]) {
-            max = elt.max[1];
+            max = _elt.max[1];
+          } else if (_elt.max[1] !== null && max < _elt.max[1]) {
+            max = _elt.max[1];
           }
         });
-        if (yaxis.align_to !== undefined) {
-          if (min !== null && yaxis.min_type !== minmax_type.FIXED) {
-            if (min % yaxis.align_to !== 0) {
-              min = min >= 0 ? min - (min % yaxis.align_to) : -(yaxis.align_to + (min % yaxis.align_to) - min);
+        if (_yaxis.align_to !== undefined) {
+          if (min !== null && _yaxis.min_type !== minmax_type.FIXED) {
+            if (min % _yaxis.align_to !== 0) {
+              min = min >= 0 ? min - (min % _yaxis.align_to) : -(_yaxis.align_to + (min % _yaxis.align_to) - min);
             }
           }
-          if (max !== null && yaxis.max_type !== minmax_type.FIXED) {
-            if (max % yaxis.align_to !== 0) {
-              max = max >= 0 ? yaxis.align_to - (max % yaxis.align_to) + max : (max % yaxis.align_to) - max;
+          if (max !== null && _yaxis.max_type !== minmax_type.FIXED) {
+            if (max % _yaxis.align_to !== 0) {
+              max =
+                max >= 0
+                  ? _yaxis.align_to - (_yaxis.align_to % _yaxis.align_to) + max
+                  : (_yaxis.align_to % _yaxis.align_to) - max;
             }
           }
         }
-        yaxis.series_id?.forEach((id) => {
-          if (min !== null && yaxis.min_type !== minmax_type.FIXED) {
+        _yaxis.series_id?.forEach((_id) => {
+          if (min !== null && _yaxis.min_type !== minmax_type.FIXED) {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this._config!.apex_config!.yaxis![id].min = this._getMinMaxBasedOnType(
+            this._config!.apex_config!.yaxis![_id].min = this._getMinMaxBasedOnType(
               true,
               min,
-              yaxis.min as number,
+              _yaxis.min as number,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              yaxis.min_type!,
+              _yaxis.min_type!,
             );
           }
-          if (max !== null && yaxis.max_type !== minmax_type.FIXED) {
+          if (max !== null && _yaxis.max_type !== minmax_type.FIXED) {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this._config!.apex_config!.yaxis![id].max = this._getMinMaxBasedOnType(
+            this._config!.apex_config!.yaxis![_id].max = this._getMinMaxBasedOnType(
               false,
               max,
-              yaxis.max as number,
+              _yaxis.max as number,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              yaxis.max_type!,
+              _yaxis.max_type!,
             );
           }
         });
@@ -1294,17 +1319,17 @@ class ChartsCard extends LitElement {
   private _computeChartColors(brush: boolean): (string | (({ value }) => string))[] {
     const defaultColors: (string | (({ value }) => string))[] = computeColors(brush ? this._brushColors : this._colors);
     const series = brush ? this._config?.series_in_brush : this._config?.series_in_graph;
-    series?.forEach((serie, index) => {
+    series?.forEach((seriesItem, _index) => {
       if (
         this._config?.experimental?.color_threshold &&
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        (PLAIN_COLOR_TYPES.includes(this._config!.chart_type!) || serie.type === 'column') &&
-        serie.color_threshold &&
-        serie.color_threshold.length > 0
+        (PLAIN_COLOR_TYPES.includes(this._config!.chart_type!) || seriesItem.type === 'column') &&
+        seriesItem.color_threshold &&
+        seriesItem.color_threshold.length > 0
       ) {
         const colors = this._colors;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        defaultColors[index] = function ({ value }, sortedL = serie.color_threshold!, defColor = colors[index]) {
+        defaultColors[_index] = function ({ value }, sortedL = seriesItem.color_threshold!, defColor = colors[_index]) {
           let returnValue = sortedL[0].color || defColor;
           sortedL.forEach((color) => {
             if (value > color.value) returnValue = color.color || defColor;
@@ -1317,16 +1342,16 @@ class ChartsCard extends LitElement {
   }
 
   private _computeFillColorStops(
-    serie: ChartCardSeriesConfig,
+    seriesItem: ChartCardSeriesConfig,
     min: number,
     max: number,
     defColor: string,
     invert = false,
   ): { offset: number; color: string; opacity?: number }[] | undefined {
-    if (!serie.color_threshold) return undefined;
+    if (!seriesItem.color_threshold) return undefined;
     const scale = max - min;
 
-    const result = serie.color_threshold.flatMap((thres, index, arr) => {
+    const result = seriesItem.color_threshold.flatMap((thres, index, arr) => {
       if (
         (thres.value > max && arr[index - 1] && arr[index - 1].value > max) ||
         (thres.value < min && arr[index + 1] && arr[index + 1].value < min)
@@ -1334,7 +1359,8 @@ class ChartsCard extends LitElement {
         return [];
       }
       let color: string | undefined = undefined;
-      const defaultOp = serie.opacity !== undefined ? serie.opacity : serie.type === 'area' ? DEFAULT_AREA_OPACITY : 1;
+      const defaultOp =
+        seriesItem.opacity !== undefined ? seriesItem.opacity : seriesItem.type === 'area' ? DEFAULT_AREA_OPACITY : 1;
       let opacity = thres.opacity === undefined ? defaultOp : thres.opacity;
       if (thres.value > max && arr[index - 1]) {
         const factor = (max - arr[index - 1].value) / (thres.value - arr[index - 1].value);
@@ -1373,7 +1399,7 @@ class ChartsCard extends LitElement {
         opacity = opacity < 0 ? -opacity : opacity;
       }
       color = color || tinycolor(thres.color || defColor).toHexString();
-      if ([undefined, 'line'].includes(serie.type)) color = tinycolor(color).setAlpha(opacity).toHex8String();
+      if ([undefined, 'line'].includes(seriesItem.type)) color = tinycolor(color).setAlpha(opacity).toHex8String();
       return [
         {
           color: color || tinycolor(thres.color || defColor).toHexString(),
@@ -1386,41 +1412,44 @@ class ChartsCard extends LitElement {
     return invert ? result : result.reverse();
   }
 
-  private _computeHeaderStateColor(serie: ChartCardSeriesConfig, value: number | null): string {
+  private _computeHeaderStateColor(seriesItem: ChartCardSeriesConfig, value: number | null): string {
     let color = '';
     if (this._config?.header?.colorize_states) {
       if (
         this._config.experimental?.color_threshold &&
-        serie.show.header_color_threshold &&
-        serie.color_threshold &&
-        serie.color_threshold.length > 0 &&
+        seriesItem.show.header_color_threshold &&
+        seriesItem.color_threshold &&
+        seriesItem.color_threshold.length > 0 &&
         value !== null
       ) {
-        const index = serie.color_threshold.findIndex((thres) => {
+        const index = seriesItem.color_threshold.findIndex((thres) => {
           return thres.value > value;
         });
         if (index < 0) {
           color = computeColor(
-            serie.color_threshold[serie.color_threshold.length - 1].color || this._headerColors[serie.index],
+            seriesItem.color_threshold[seriesItem.color_threshold.length - 1].color ||
+              this._headerColors[seriesItem.index],
           );
         } else if (index === 0) {
-          color = computeColor(serie.color_threshold[0].color || this._headerColors[serie.index]);
+          color = computeColor(seriesItem.color_threshold[0].color || this._headerColors[seriesItem.index]);
         } else {
-          const prev = serie.color_threshold[index - 1];
-          const next = serie.color_threshold[index];
-          if (serie.type === 'column') {
-            color = computeColor(prev.color || this._headerColors[serie.index]);
+          const prev = seriesItem.color_threshold[index - 1];
+          const next = seriesItem.color_threshold[index];
+          if (seriesItem.type === 'column') {
+            color = computeColor(prev.color || this._headerColors[seriesItem.index]);
           } else {
             const factor = (value - prev.value) / (next.value - prev.value);
             color = interpolateColor(
-              computeColor(prev.color || this._headerColors[serie.index]),
-              computeColor(next.color || this._headerColors[serie.index]),
+              computeColor(prev.color || this._headerColors[seriesItem.index]),
+              computeColor(next.color || this._headerColors[seriesItem.index]),
               factor,
             );
           }
         }
       } else {
-        return this._headerColors && this._headerColors.length > 0 ? `color: ${this._headerColors[serie.index]};` : '';
+        return this._headerColors && this._headerColors.length > 0
+          ? `color: ${this._headerColors[seriesItem.index]};`
+          : '';
       }
     }
     return color ? `color: ${color};` : '';
@@ -1433,19 +1462,19 @@ class ChartsCard extends LitElement {
 
   /*
     Makes the chart end at the last timestamp of the data when everything displayed is a
-    column and group_by is enabled for every serie
+    column and group_by is enabled for every seriesItem
   */
   private _findEndOfChart(end: Date, brush: boolean): number {
     const localEnd = new Date(end);
     let offsetEnd: number | undefined = 0;
     const series = brush ? this._config?.series_in_brush : this._config?.series_in_graph;
-    const onlyGroupBy = series?.reduce((acc, serie) => {
-      return acc && serie.group_by.func !== 'raw';
+    const onlyGroupBy = series?.reduce((acc, seriesItem) => {
+      return acc && seriesItem.group_by.func !== 'raw';
     }, series?.length > 0);
     if (onlyGroupBy) {
-      offsetEnd = series?.reduce((acc, serie) => {
+      offsetEnd = series?.reduce((acc, seriesItem) => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const dur = parse(serie.group_by.duration)!;
+        const dur = parse(seriesItem.group_by.duration)!;
         if (acc === -1 || dur < acc) {
           return dur;
         }
@@ -1488,19 +1517,19 @@ class ChartsCard extends LitElement {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _handleAction(ev: any, serieConfig: ChartCardSeriesConfig) {
-    if (ev.detail?.action) {
-      const configDup: ActionsConfig = serieConfig.header_actions
-        ? JSON.parse(JSON.stringify(serieConfig.header_actions))
+  private _handleAction(_ev: any, seriesItemConfig: ChartCardSeriesConfig) {
+    if (_ev.detail?.action) {
+      const configDup: ActionsConfig = seriesItemConfig.header_actions
+        ? JSON.parse(JSON.stringify(seriesItemConfig.header_actions))
         : {};
 
-      switch (ev.detail.action) {
+      switch (_ev.detail.action) {
         case 'tap':
         case 'hold':
         case 'double_tap':
-          configDup.entity = configDup[`${ev.detail.action}_action`]?.entity || serieConfig.entity;
+          configDup.entity = configDup[`${_ev.detail.action}_action`]?.entity || seriesItemConfig.entity;
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          handleAction(this, this._hass!, configDup, ev.detail.action);
+          handleAction(this, this._hass!, configDup, _ev.detail.action);
           break;
         default:
           break;
@@ -1510,19 +1539,19 @@ class ChartsCard extends LitElement {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _handleTitleAction(ev: any) {
-    if (ev.detail?.action) {
+  private _handleTitleAction(_ev: any) {
+    if (_ev.detail?.action) {
       const configDup: ActionsConfig = this._config?.header?.title_actions
         ? JSON.parse(JSON.stringify(this._config?.header?.title_actions))
         : {};
 
-      switch (ev.detail.action) {
+      switch (_ev.detail.action) {
         case 'tap':
         case 'hold':
         case 'double_tap':
-          configDup.entity = configDup[`${ev.detail.action}_action`]?.entity;
+          configDup.entity = configDup[`${_ev.detail.action}_action`]?.entity;
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          handleAction(this, this._hass!, configDup, ev.detail.action);
+          handleAction(this, this._hass!, configDup, _ev.detail.action);
           break;
         default:
           break;
@@ -1531,30 +1560,21 @@ class ChartsCard extends LitElement {
     return;
   }
 
-  // backward compatibility
   @eventOptions({ passive: true })
-  private handleRippleActivate(evt: Event, index: number | string): void {
-    // Entferne den Aufruf von beginPress
-    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
-    // r && r.beginPress();
+  private handleRippleActivate(): void {
+    // Remove the call to beginPress
   }
 
-  private handleRippleDeactivate(_, index: number | string): void {
-    // Entferne den Aufruf von endPress
-    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
-    // r && r.endPress();
+  private handleRippleDeactivate(): void {
+    // Remove the call to endPress
   }
 
-  private handleRippleFocus(_, index: number | string): void {
-    // Entferne den Aufruf von beginHover
-    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
-    // r && r.beginHover();
+  private handleRippleFocus(): void {
+    // Remove the call to beginHover
   }
 
-  private handleRippleBlur(_, index: number | string): void {
-    // Entferne den Aufruf von endHover
-    // const r = this.shadowRoot?.getElementById(`ripple-${index}`) as MdRipple;
-    // r && r.endHover();
+  private handleRippleBlur(): void {
+    // Remove the call to endHover
   }
 
   public getCardSize(): number {
@@ -1663,6 +1683,23 @@ return data.reverse();
       };
     }
     return conf;
+  }
+
+  public addEventListener(): void {
+    // ... existing code ...
+  }
+
+  public removeEventListener(): void {
+    // ... existing code ...
+  }
+
+  public dispatchEvent(): boolean {
+    // ... existing code ...
+    return true;
+  }
+
+  public handleEvent(): void {
+    // ... existing code ...
   }
 }
 
