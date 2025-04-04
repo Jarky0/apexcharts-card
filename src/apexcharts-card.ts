@@ -409,15 +409,18 @@ class ChartsCard extends LitElement {
       throw new Error(`'all_series_config' must be an object!`);
     }
 
-    const { customChecker } = createCheckers(exportedTypeSuite);
+    // Skip validation if disabled in experimental options
+    if (!config.experimental?.disable_config_validation) {
+      const { customChecker } = createCheckers(exportedTypeSuite);
 
-    // Validate configuration with the types
-    try {
-      customChecker.check(config);
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        log(`Check of config failed: ${e.toString()}`);
-        throw new Error(`Configuration errors: ${e.toString()}`);
+      // Validate configuration with the types
+      try {
+        customChecker.check(config);
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          log(`Check of config failed: ${e.toString()}`);
+          throw new Error(`Configuration errors: ${e.toString()}`);
+        }
       }
     }
 
