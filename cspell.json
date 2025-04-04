@@ -1,0 +1,22 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Hass",
+    "apexcharts",
+    "xaxis",
+    "yaxis",
+    "yaxes",
+    "hass",
+    "lovelace",
+    "homeassistant",
+    "websocket",
+    "pjson",
+    "dimgray",
+    "extremas",
+    "cmin",
+    "cmax",
+    "thres"
+  ],
+  "ignorePaths": ["node_modules/**", "dist/**", "coverage/**", "*.min.js", "*.min.css"]
+}
