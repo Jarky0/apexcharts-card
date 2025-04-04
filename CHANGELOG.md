@@ -1,3 +1,12 @@
+## 2.4.0 (2025-04-04)
+
+* chore(deps): update dependencies to latest compatible versions ([4cd29c8](https://github.com/Jarky0/apexcharts-card/commit/4cd29c8))
+* Fix: Resolve ESLint warnings for unused variables and any types ([cbd61b5](https://github.com/Jarky0/apexcharts-card/commit/cbd61b5))
+* Fix: Resolve Rollup this-binding warnings by adjusting commonjs plugin config ([911d04b](https://github.com/Jarky0/apexcharts-card/commit/911d04b))
+* Refactor: Import utility functions directly in apex-layouts ([18c1118](https://github.com/Jarky0/apexcharts-card/commit/18c1118))
+* Remove unused exports and fix type conversion issues ([b63b3fe](https://github.com/Jarky0/apexcharts-card/commit/b63b3fe))
+* feat: enhance chart configuration and add documentation ([4a3b1f8](https://github.com/Jarky0/apexcharts-card/commit/4a3b1f8))
+
 ## <small>2.3.1 (2025-04-04)</small>
 
 * perf: Improve performance across various components ([d1bbae9](https://github.com/Jarky0/apexcharts-card/commit/d1bbae9))
