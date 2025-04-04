@@ -40,9 +40,11 @@ module.exports = {
       '@semantic-release/github',
       {
         assets: 'dist/*.js',
+        repositoryUrl: 'https://github.com/Jarky0/apexcharts-card.git'
       },
     ],
   ],
   preset: 'conventionalcommits',
   branches: [{ name: 'master' }, { name: 'dev', prerelease: true }],
+  repositoryUrl: 'https://github.com/Jarky0/apexcharts-card.git'
 };
