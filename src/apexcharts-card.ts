@@ -1,6 +1,5 @@
 import { LitElement, html, TemplateResult, PropertyValues, CSSResultGroup } from 'lit';
-import { property, state, customElement, eventOptions } from 'lit/decorators.js'; // Ensure state is imported
-import { ifDefined } from 'lit/directives/if-defined.js';
+import { property, state, customElement, eventOptions } from 'lit/decorators.js';
 import { ClassInfo, classMap } from 'lit/directives/class-map.js';
 import {
   ChartCardConfig,
@@ -11,7 +10,7 @@ import {
   HistoryPoint,
   minmax_type,
 } from './types';
-import { handleAction, HomeAssistant, ActionHandlerEvent, LovelaceConfig } from 'custom-card-helpers'; // Import LovelaceConfig
+import { handleAction, HomeAssistant, ActionHandlerEvent } from 'custom-card-helpers';
 import localForage from 'localforage';
 import * as pjson from '../package.json';
 import {
@@ -19,20 +18,16 @@ import {
   computeColors,
   computeName,
   computeTextColor,
-  computeUom,
   decompress,
   formatApexDate,
   getLang,
-  getPercentFromValue,
   interpolateColor,
   is12Hour,
   log,
   mergeConfigTemplates,
   mergeDeep,
-  mergeDeepConfig,
   myFormatNumber,
   offsetData,
-  prettyPrintTime,
   truncateFloat,
   validateInterval,
   validateOffset,
@@ -51,7 +46,7 @@ import {
   ChartCardColorThreshold,
   ChartCardExternalConfig,
   ChartCardSeriesExternalConfig,
-  ChartCardHeaderExternalConfig, // Use External config type here
+  ChartCardHeaderExternalConfig,
 } from './types-config';
 import exportedTypeSuite from './types-config-ti';
 import {
@@ -1209,8 +1204,8 @@ class ChartsCard extends LitElement {
   private _generateApexConfig(config: ChartCardConfig): ApexCharts.ApexOptions {
     const lang = getLang(config, this._hass);
     const is12HourVar = is12Hour(config, this._hass);
-    const { start, end } = this._getSpanDates();
-    const endChartTimestamp = this._findEndOfChart(end, false);
+    const spanDates = this._getSpanDates();
+    const chartEnd = this._findEndOfChart(spanDates.end, false);
 
     const layout = getLayoutConfig(config, this._hass!, this._graphs);
     const mergedConfig = mergeDeep(layout, config.apex_config || {});
@@ -1299,7 +1294,7 @@ class ChartsCard extends LitElement {
     if (this._config?.now?.show) {
       const nowAnnotation = this._computeNowAnnotation(now);
       // Use type assertion to handle the type mismatch
-      res.xaxis = nowAnnotation.xaxis as any;
+      res.xaxis = nowAnnotation.xaxis as XAxisAnnotation[];
     }
     res.points = this._computeMinMaxPointsAnnotations(start, end);
     return res;
@@ -1307,7 +1302,7 @@ class ChartsCard extends LitElement {
 
   private _computeMinMaxPointsAnnotations(start: Date, end: Date) {
     if (!this._config) return [];
-    let annotations: ApexAnnotationsPoint[] = [];
+    const annotations: ApexAnnotationsPoint[] = [];
     this._config.series.forEach((series, index) => {
       if (!series.show?.extremas || !series.show.in_chart) return;
       const graph = this._graphs?.find((graph) => graph?.index === index);
@@ -1365,8 +1360,8 @@ class ChartsCard extends LitElement {
             series,
             index,
             false,
-            styleWithX as any, // Temporarily cast to "any" to bypass the error
-            'max', // Specify type for potential customization
+            styleWithX as ApexAnnotationsPoint,
+            'max',
           ),
         );
       }
@@ -1379,9 +1374,9 @@ class ChartsCard extends LitElement {
             computeTextColor(series.color!),
             series,
             index,
-            true, // Invert for min
-            styleWithX as any, // Temporarily cast to "any" to bypass the error
-            'min', // Specify type for potential customization
+            true,
+            styleWithX as ApexAnnotationsPoint,
+            'min',
           ),
         );
       }
@@ -1876,12 +1871,13 @@ class ChartsCard extends LitElement {
     const entityFilter = (stateObj: HassEntity): boolean => {
       return !isNaN(Number(stateObj.state));
     };
-    const _arrayFilter = (array: any[], conditions: Array<(value: any) => boolean>, maxSize: number) => {
+
+    const _arrayFilter = <T>(array: T[], conditions: Array<(value: T) => boolean>, maxSize: number): T[] => {
       if (!maxSize || maxSize > array.length) {
         maxSize = array.length;
       }
 
-      const filteredArray: any[] = [];
+      const filteredArray: T[] = [];
 
       for (let i = 0; i < array.length && filteredArray.length < maxSize; i++) {
         let meetsConditions = true;
@@ -2000,13 +1996,26 @@ return data.reverse();
 }
 
 // Configure the preview in the Lovelace card picker
-(window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
+interface CustomWindow extends Window {
+  customCards: Array<{
+    type: string;
+    name: string;
+    preview: boolean;
+    description: string;
+  }>;
+  ApexCharts: typeof ApexCharts;
+}
+
+const win = window as unknown as CustomWindow;
+win.customCards = win.customCards || [];
+win.customCards.push({
   type: 'apexcharts-card',
   name: 'ApexCharts Card',
   preview: true,
   description: 'A graph card based on ApexCharts',
 });
+
+win.ApexCharts = ApexCharts;
 
 // ADD Helper functions for getStartOfUnit and getEndOfUnit (native Date equivalent)
 // Defined outside the class at module level
