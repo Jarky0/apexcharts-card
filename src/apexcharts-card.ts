@@ -10,7 +10,7 @@ import {
   HistoryPoint,
   minmax_type,
 } from './types';
-import { handleAction, HomeAssistant, ActionHandlerEvent } from 'custom-card-helpers';
+import { handleAction, HomeAssistant, ActionHandlerEvent, TimeFormat } from 'custom-card-helpers';
 import localForage from 'localforage';
 import * as pjson from '../package.json';
 import {
@@ -22,7 +22,6 @@ import {
   formatApexDate,
   getLang,
   interpolateColor,
-  is12Hour,
   log,
   mergeConfigTemplates,
   mergeDeep,
@@ -43,7 +42,6 @@ import GraphEntry from './graphEntry';
 import { createCheckers } from 'ts-interface-checker';
 import {
   ActionsConfig,
-  ChartCardColorThreshold,
   ChartCardExternalConfig,
   ChartCardSeriesExternalConfig,
   ChartCardHeaderExternalConfig,
@@ -58,9 +56,6 @@ import {
   DEFAULT_FUNC,
   DEFAULT_GRAPH_SPAN,
   DEFAULT_GROUP_BY_FILL,
-  DEFAULT_LEGEND_MARKER_WIDTH,
-  DEFAULT_SERIES_TYPE,
-  DEFAULT_STATISTICS_PERIOD,
   DEFAULT_SHOW_IN_CHART,
   DEFAULT_SHOW_IN_HEADER,
   DEFAULT_SHOW_IN_LEGEND,
@@ -69,9 +64,6 @@ import {
   DEFAULT_SHOW_OFFSET_IN_NAME,
   DEFAULT_UPDATE_DELAY,
   HOUR_24,
-  NO_VALUE,
-  PLAIN_COLOR_TYPES,
-  TIMESERIES_TYPES,
 } from './const';
 import parse from 'parse-duration';
 import tinycolor from '@ctrl/tinycolor';
@@ -932,10 +924,13 @@ class ChartsCard extends LitElement {
       // _updating and _fetchError are handled within _updateData
       this._updateHeaderColors(); // Update colors again after potential data load
       this.requestUpdate(); // Trigger re-render
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Catch potential errors not caught within _updateData
       console.error('Error during initial load sequence:', error);
-      this._fetchError = error.message || 'Failed initial load sequence';
+      this._fetchError =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : 'Failed initial load sequence';
       this._updating = false;
       this._loaded = false; // Ensure loaded is false on error
       this.requestUpdate('_fetchError'); // Trigger re-render to show error
@@ -1176,10 +1171,13 @@ class ChartsCard extends LitElement {
 
         this._updateHeaderColors(); // Update header colors based on potentially new data
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Catch any unexpected errors in the entire update process
       console.error('Error during data update:', error);
-      this._fetchError = error.message || 'Unknown error during data update';
+      this._fetchError =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : 'Unknown error during data update';
     } finally {
       this._updating = false;
       this.requestUpdate(); // Request update regardless of success/failure
@@ -1202,11 +1200,9 @@ class ChartsCard extends LitElement {
   }
 
   private _generateApexConfig(config: ChartCardConfig): ApexCharts.ApexOptions {
-    const lang = getLang(config, this._hass);
-    const is12HourVar = is12Hour(config, this._hass);
-    const spanDates = this._getSpanDates();
-    const chartEnd = this._findEndOfChart(spanDates.end, false);
-
+    const lang = this._hass?.language;
+    const is12HourVar = this._hass?.locale?.time_format === TimeFormat.am_pm || false;
+    // Remove unused chartEnd variable
     const layout = getLayoutConfig(config, this._hass!, this._graphs);
     const mergedConfig = mergeDeep(layout, config.apex_config || {});
     const baseConfig: ApexCharts.ApexOptions = mergeDeep(mergedConfig, {

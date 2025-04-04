@@ -7,7 +7,6 @@ import {
   HassHistoryEntry,
   HistoryBuckets,
   HistoryPoint,
-  Statistics,
   StatisticValue,
 } from './types';
 import { compress, decompress, log } from './utils';
