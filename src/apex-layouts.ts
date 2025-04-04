@@ -4,7 +4,7 @@ import {
   DEFAULT_AREA_OPACITY,
   DEFAULT_FLOAT_PRECISION,
   DEFAULT_LEGEND_MARKER_WIDTH,
-  DEFAULT_SERIE_TYPE,
+  DEFAULT_SERIES_TYPE,
   HOUR_24,
   NO_VALUE,
   PLAIN_COLOR_TYPES,
@@ -31,7 +31,7 @@ export function getLayoutConfig(
         (config.locale && locales[config.locale] && config.locale) ||
         (hass?.language && locales[hass.language] && hass.language) ||
         'en',
-      type: config.chart_type || DEFAULT_SERIE_TYPE,
+      type: config.chart_type || DEFAULT_SERIES_TYPE,
       stacked: config?.stacked,
       foreColor: 'var(--primary-text-color)',
       width: '100%',
@@ -121,7 +121,7 @@ export function getBrushLayoutConfig(
         (config.locale && locales[config.locale] && config.locale) ||
         (hass?.language && locales[hass.language] && hass.language) ||
         'en',
-      type: config.chart_type || DEFAULT_SERIE_TYPE,
+      type: config.chart_type || DEFAULT_SERIES_TYPE,
       stacked: config?.stacked,
       foreColor: 'var(--primary-text-color)',
       width: '100%',

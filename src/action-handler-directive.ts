@@ -10,7 +10,7 @@ import { ActionHandlerOptions } from './types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0;
 
-export interface ActionHandler extends HTMLElement {
+export interface ActionHandlerInterface extends HTMLElement {
   holdTime: number;
   bind(element: Element, options?: ActionHandlerOptions): void;
 }
@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-export class ActionHandler extends HTMLElement implements ActionHandler {
+export class ActionHandler extends HTMLElement implements ActionHandlerInterface {
   public holdTime = 500;
 
   public ripple: MdRipple;

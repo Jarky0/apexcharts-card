@@ -1,17 +1,25 @@
 import momentTimezone from 'moment-timezone';
-// import * as MomentRange from 'moment-range'; // Removed
 import momentDurationFormatSetup from 'moment-duration-format';
+import { extendMoment, DateRange } from 'moment-range'; // Import moment-range function and DateRange type
+// import * as MomentRange from 'moment-range'; // Removed
 // Remove unused imports
 // import { GroupByFill, GroupByFunc } from './types-config';
 
-// Apply moment-duration-format
-momentDurationFormatSetup(momentTimezone as unknown as { format: (format: string) => string });
-// Remove the extendMoment call
-// const momentRange = MomentRange.default;
-// momentRange.extendMoment(momentTimezone);
+// Augment the moment module type
+declare module 'moment' {
+  // Remove empty interface Moment {}
+  // Add the range function signature to the moment static namespace
+  function range(start: moment.MomentInput, end: moment.MomentInput): DateRange;
+}
 
-// Export the moment-timezone (with duration format only) as 'moment'
-export const moment = momentTimezone;
+// Apply moment-duration-format (without incorrect cast)
+momentDurationFormatSetup(momentTimezone);
+
+// Apply moment-range
+const momentWithPlugins = extendMoment(momentTimezone);
+
+// Export the fully configured moment object
+export const moment = momentWithPlugins;
 
 export const ONE_HOUR = 1000 * 3600;
 export const HOUR_24 = ONE_HOUR * 24;

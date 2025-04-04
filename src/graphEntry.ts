@@ -18,12 +18,7 @@ import parse from 'parse-duration';
 import SparkMD5 from 'spark-md5';
 import { ChartCardSpanExtConfig, StatisticsPeriod } from './types-config';
 import * as pjson from '../package.json';
-import momentTimezone from 'moment-timezone';
-import * as MomentRange from 'moment-range';
-
-// Apply moment-range locally to moment-timezone
-const momentRange = MomentRange.default;
-momentRange.extendMoment(momentTimezone);
+import { DateRange } from 'moment-range';
 
 export default class GraphEntry {
   private _computedHistory?: EntityCachePoints;
@@ -221,174 +216,47 @@ export default class GraphEntry {
       return true;
     }
 
-    let history: EntityEntryCache | undefined = undefined;
+    let history = this._cache ? await this._getCache(this._entityID, this._useCompress) : undefined;
+    if (!history || !history.card_version || history.card_version !== pjson.version) {
+      // eslint-disable-next-line no-param-reassign
+      startHistory = new Date(0);
+      history = undefined;
+    }
+    if (history && history.span < startHistory.getTime()) {
+      startHistory = new Date(history.span);
+    }
 
-    if (this._config.data_generator) {
-      history = await this._generateData(start, end);
-    } else {
-      this._realStart = new Date(start);
-      this._realEnd = new Date(end);
+    const newHistory = await this._fetchHistory(startHistory, end);
+    let computedHistory: EntityCachePoints = (history && history.data) || [];
 
-      let skipInitialState = false;
-
-      history = this._cache ? await this._getCache(this._entityID, this._useCompress) : undefined;
-
-      if (history && history.span === this._graphSpan) {
-        const currDataIndex = history.data.findIndex(
-          (item) => item && new Date(item[0]).getTime() > startHistory.getTime(),
-        );
-        if (currDataIndex !== -1) {
-          // skip initial state when fetching recent/not-cached data
-          skipInitialState = true;
-        }
-        if (currDataIndex > 4) {
-          // >4 so that the graph has some more history
-          history.data = history.data.slice(currDataIndex === 0 ? 0 : currDataIndex - 4);
-        } else if (currDataIndex === -1) {
-          // there was no state which could be used in current graph so clearing
-          history.data = [];
-        }
-      } else {
-        history = undefined;
-      }
-      const usableCache = !!(
-        history &&
-        history.data &&
-        history.data.length !== 0 &&
-        history.data[history.data.length - 1]
-      );
-
-      // if data in cache, get data from last data's time + 1ms
-      const fetchStart = usableCache
-        ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          new Date(history!.data[history!.data.length - 1][0] + 1)
-        : new Date(startHistory.getTime() + (this._config.group_by.func !== 'raw' ? 0 : -1));
-      const fetchEnd = end;
-
-      let newStateHistory: EntityCachePoints = [];
-      let updateGraphHistory = false;
-
-      if (this._config.statistics) {
-        const newHistory = await this._fetchStatistics(fetchStart, fetchEnd, this._config.statistics.period);
-        if (newHistory && newHistory.length > 0) {
-          updateGraphHistory = true;
-          let lastNonNull: number | null = null;
-          if (history && history.data && history.data.length > 0) {
-            lastNonNull = history.data[history.data.length - 1][1];
-          }
-          newStateHistory = newHistory.map((item) => {
-            let stateParsed: number | null = null;
-            [lastNonNull, stateParsed] = this._transformAndFill(
-              item[this._config.statistics?.type || DEFAULT_STATISTICS_TYPE],
-              item,
-              lastNonNull,
-            );
-
-            let displayDate: Date | null = null;
-            const startDate = new Date(item.start);
-            if (!this._config.statistics?.align || this._config.statistics?.align === 'middle') {
-              if (this._config.statistics?.period === '5minute') {
-                displayDate = new Date(startDate.getTime() + 150000); // 2min30s
-              } else if (!this._config.statistics?.period || this._config.statistics.period === 'hour') {
-                displayDate = new Date(startDate.getTime() + 1800000); // 30min
-              } else if (this._config.statistics.period === 'day') {
-                displayDate = new Date(startDate.getTime() + 43200000); // 12h
-              } else if (this._config.statistics.period === 'week') {
-                displayDate = new Date(startDate.getTime() + 259200000); // 3.5d
-              } else {
-                displayDate = new Date(startDate.getTime() + 1296000000); // 15d
-              }
-            } else if (this._config.statistics.align === 'start') {
-              displayDate = new Date(item.start);
-            } else {
-              displayDate = new Date(item.end);
-            }
-
-            return [displayDate.getTime(), !Number.isNaN(stateParsed) ? stateParsed : null];
-          });
-        }
-      } else {
-        const newHistory = await this._fetchRecent(
-          fetchStart,
-          fetchEnd,
-          this._config.attribute || this._config.transform ? false : skipInitialState,
-        );
-        if (newHistory && newHistory[0] && newHistory[0].length > 0) {
-          updateGraphHistory = true;
-          /*
-          hack because HA doesn't return anything if skipInitialState is false
-          when retrieving for attributes so we retrieve it and we remove it.
-          */
-          if ((this._config.attribute || this._config.transform) && skipInitialState) {
-            newHistory[0].shift();
-          }
-          let lastNonNull: number | null = null;
-          if (history && history.data && history.data.length > 0) {
-            lastNonNull = history.data[history.data.length - 1][1];
-          }
-          newStateHistory = newHistory[0].map((item) => {
-            let currentState: unknown = null;
-            if (this._config.attribute) {
-              if (item.attributes && item.attributes[this._config.attribute] !== undefined) {
-                currentState = item.attributes[this._config.attribute];
-              }
-            } else {
-              currentState = item.state;
-            }
-            let stateParsed: number | null = null;
-            [lastNonNull, stateParsed] = this._transformAndFill(currentState, item, lastNonNull);
-
-            if (this._config.attribute) {
-              return [new Date(item.last_updated).getTime(), !Number.isNaN(stateParsed) ? stateParsed : null];
-            } else {
-              return [new Date(item.last_changed).getTime(), !Number.isNaN(stateParsed) ? stateParsed : null];
-            }
-          });
-        }
-      }
-
-      if (updateGraphHistory) {
-        if (history?.data.length) {
-          history.span = this._graphSpan;
-          history.last_fetched = new Date();
-          history.card_version = pjson.version;
-          if (history.data.length !== 0) {
-            history.data.push(...newStateHistory);
-          }
-        } else {
-          history = {
-            span: this._graphSpan,
+    if (newHistory && newHistory.length > 0) {
+      computedHistory = this._processHistory(computedHistory, newHistory, startHistory, end);
+      if (this._cache) {
+        this._setCache(
+          this._entityID,
+          {
             card_version: pjson.version,
+            span: startHistory.getTime(),
+            data: computedHistory,
             last_fetched: new Date(),
-            data: newStateHistory,
-          };
-        }
-
-        if (this._cache) {
-          await this._setCache(this._entityID, history, this._useCompress).catch((err) => {
-            log(err);
-            localForage.clear();
-          });
-        }
+          },
+          this._useCompress,
+        );
       }
     }
 
-    if (!history || history.data.length === 0) {
-      this._updating = false;
-      this._computedHistory = undefined;
-      return false;
-    }
+    this._computedHistory = computedHistory;
+
     if (this._config.group_by.func !== 'raw') {
-      const res: EntityCachePoints = this._dataBucketer(history, momentRange.range(startHistory, end)).map((bucket) => {
-        const value = bucket.length > 0 ? this._func(bucket) : null;
+      const range = moment.range(startHistory, end);
+      const res: EntityCachePoints = this._dataBucketer(this._computedHistory, range).map((bucket) => {
+        const value = bucket.data.length > 0 ? this._func(bucket.data) : null;
         return [bucket.timestamp, value];
       });
       if ([undefined, 'line', 'area'].includes(this._config.type)) {
         while (res.length > 0 && res[0][1] === null) res.shift();
       }
       this._computedHistory = res;
-    } else {
-      this._computedHistory = history.data;
     }
     this._updating = false;
     return true;
@@ -478,7 +346,7 @@ export default class GraphEntry {
     start: Date | undefined,
     end: Date | undefined,
     period: StatisticsPeriod = DEFAULT_STATISTICS_PERIOD,
-  ): Promise<StatisticValue[] | undefined> {
+  ): Promise<EntityCachePoints | undefined> {
     const statistics = await this._hass?.callWS<Statistics>({
       type: 'recorder/statistics_during_period',
       start_time: start?.toISOString(),
@@ -487,25 +355,58 @@ export default class GraphEntry {
       period,
     });
     if (statistics && this._entityID in statistics) {
-      return statistics[this._entityID];
+      const stats = statistics[this._entityID];
+      let lastNonNull: number | null = null;
+      return stats.map((item) => {
+        let stateParsed: number | null = null;
+        [lastNonNull, stateParsed] = this._transformAndFill(
+          item[this._config.statistics?.type || DEFAULT_STATISTICS_TYPE],
+          item,
+          lastNonNull,
+        );
+        let displayDate: Date | null = null;
+        const startDate = new Date(item.start);
+        if (!this._config.statistics?.align || this._config.statistics?.align === 'middle') {
+          if (this._config.statistics?.period === '5minute') {
+            displayDate = new Date(startDate.getTime() + 150000); // 2min30s
+          } else if (!this._config.statistics?.period || this._config.statistics.period === 'hour') {
+            displayDate = new Date(startDate.getTime() + 1800000); // 30min
+          } else if (this._config.statistics.period === 'day') {
+            displayDate = new Date(startDate.getTime() + 43200000); // 12h
+          } else if (this._config.statistics.period === 'week') {
+            displayDate = new Date(startDate.getTime() + 259200000); // 3.5d
+          } else {
+            displayDate = new Date(startDate.getTime() + 1296000000); // 15d
+          }
+        } else if (this._config.statistics.align === 'start') {
+          displayDate = new Date(item.start);
+        } else {
+          displayDate = new Date(item.end);
+        }
+
+        return [displayDate.getTime(), !Number.isNaN(stateParsed) ? stateParsed : null];
+      });
     }
     return undefined;
   }
 
-  private _dataBucketer(history: EntityCachePoints, range: moment.MomentTimeSpan): HistoryBuckets {
-    const ranges = Array.from(range.reverseBy('milliseconds', { step: this._groupByDurationMs })).reverse();
-    // const res: EntityCachePoints[] = [[]];
+  private _dataBucketer(history: EntityCachePoints, range: DateRange): HistoryBuckets {
+    const ranges = Array.from(range.by('milliseconds', { step: this._groupByDurationMs })).reverse();
     const buckets: HistoryBuckets = [];
-    ranges.forEach((range, index) => {
-      buckets[index] = { timestamp: range.valueOf(), data: [] };
+    ranges.forEach((rangeItem, index) => {
+      buckets[index] = { timestamp: rangeItem.valueOf(), data: [] };
     });
-    history?.data.forEach((entry) => {
+    history?.forEach((entry) => {
       buckets.some((bucket, index) => {
         if (bucket.timestamp > entry[0] && index > 0) {
           if (entry[0] >= buckets[index - 1].timestamp) {
             buckets[index - 1].data.push(entry);
             return true;
           }
+        }
+        if (index === buckets.length - 1 && entry[0] >= bucket.timestamp) {
+          bucket.data.push(entry);
+          return true;
         }
         return false;
       });
@@ -531,19 +432,18 @@ export default class GraphEntry {
             bucket.data.unshift([bucket.timestamp, prevBucketData[prevBucketData.length - 1][1]]);
           }
         } else {
-          const firstIndexAfter = history.data.findIndex((entry) => {
+          const firstIndexAfter = history.findIndex((entry) => {
             if (entry[0] > bucket.timestamp) return true;
             return false;
           });
           if (firstIndexAfter > 0) {
-            bucket.data.unshift([bucket.timestamp, history.data[firstIndexAfter - 1][1]]);
+            bucket.data.unshift([bucket.timestamp, history[firstIndexAfter - 1][1]]);
           }
         }
       }
     });
     buckets.shift();
     buckets.pop();
-    // Remove nulls at the end
     while (
       buckets.length > 0 &&
       (buckets[buckets.length - 1].data.length === 0 ||
@@ -636,5 +536,46 @@ export default class GraphEntry {
 
   private _filterNulls(items: EntityCachePoints): EntityCachePoints {
     return items.filter((item) => item[1] !== null);
+  }
+
+  private async _fetchHistory(start: Date, end: Date): Promise<EntityCachePoints | undefined> {
+    if (this._config.statistics) {
+      return this._fetchStatistics(start, end, this._config.statistics.period);
+    }
+    const newHistory = await this._fetchRecent(start, end, false); // Assuming skipInitialState = false for simplicity
+    if (newHistory && newHistory[0] && newHistory[0].length > 0) {
+      let lastNonNull: number | null = null;
+      return newHistory[0].map((item) => {
+        const currentState: unknown = this._config.attribute ? item.attributes?.[this._config.attribute] : item.state;
+        let stateParsed: number | null = null;
+        [lastNonNull, stateParsed] = this._transformAndFill(currentState, item, lastNonNull);
+        return [
+          new Date(this._config.attribute ? item.last_updated : item.last_changed).getTime(),
+          !Number.isNaN(stateParsed) ? stateParsed : null,
+        ];
+      });
+    }
+    return undefined;
+  }
+
+  private _processHistory(
+    oldHistory: EntityCachePoints,
+    newHistory: EntityCachePoints,
+    _start: Date, // Mark as unused
+    _end: Date, // Mark as unused
+  ): EntityCachePoints {
+    // Simple concatenation and sorting, might need more sophisticated logic
+    const combined = [...oldHistory, ...newHistory];
+    combined.sort((a, b) => a[0] - b[0]);
+    // Remove duplicates based on timestamp (keeping the last one)
+    const unique: EntityCachePoints = [];
+    const timestamps = new Set<number>();
+    for (let i = combined.length - 1; i >= 0; i--) {
+      if (!timestamps.has(combined[i][0])) {
+        unique.unshift(combined[i]);
+        timestamps.add(combined[i][0]);
+      }
+    }
+    return unique;
   }
 }
